@@ -309,6 +309,7 @@ th {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
 .channel-card h4 {
@@ -473,4 +474,32 @@ code.kbd {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+}
+
+/* 좁은 화면(모바일/태블릿) — 사이드바 220px 고정폭 때문에 본문이 짜부라지는 문제 대응 */
+@media (max-width: 860px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+  .sidebar h1,
+  .sidebar .subtitle {
+    width: 100%;
+  }
+  .main {
+    max-width: 100%;
+    padding: 20px 16px;
+  }
+  .channel-grid {
+    grid-template-columns: 1fr;
+  }
+  .row {
+    flex-direction: column;
+    gap: 0;
+  }
 }
