@@ -46,6 +46,8 @@ export const api = {
     request("/images/cardnews", { method: "POST", body: JSON.stringify({ cards, stylePrompt }) }),
   generateShortsImages: (prompts) =>
     request("/images/shorts", { method: "POST", body: JSON.stringify({ prompts }) }),
+  generateNarration: (texts) =>
+    request("/audio/narration", { method: "POST", body: JSON.stringify({ texts }) }),
   reviewGeneration: (id, review) =>
     request(`/generations/${id}/review`, { method: "PUT", body: JSON.stringify(review) }),
 

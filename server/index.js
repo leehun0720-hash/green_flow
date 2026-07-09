@@ -21,6 +21,7 @@ import { secretsStatus, setSecrets, getSecrets } from "./lib/secrets.js";
 import { generateImage } from "./lib/imageProvider.js";
 import { composeCard } from "./lib/cardCompose.js";
 import { hasLogo, getLogoBuffer, saveLogo, deleteLogo, stampLogo } from "./lib/logo.js";
+import { generateSpeech } from "./lib/ttsProvider.js";
 
 // 스케줄러가 1분마다 도는 장기 구동 프로세스이므로, 요청 하나·타이머 콜백 하나에서 새는 예외가
 // 프로세스 전체를 죽이지 않도록 막는다(기본 동작은 Node가 종료해버리는 것 — 예약 발행이 통째로 멈춤).
@@ -217,6 +218,30 @@ app.post("/api/images/shorts", async (req, res) => {
       urls.push(`/generated-images/${filename}`);
     }
     res.json({ urls, provider });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 쇼츠 영상용 장면별 AI 음성 내레이션 — 각 문장을 개별 음성 파일로 만들어 돌려준다.
+// 클립 길이가 각 장면의 화면 노출 시간을 결정하므로(shortsVideo.js), 문장 단위로 나눠서 요청한다.
+app.post("/api/audio/narration", async (req, res) => {
+  try {
+    const { texts } = req.body;
+    if (!Array.isArray(texts) || texts.length === 0) {
+      return res.status(400).json({ error: "내레이션할 문장 목록이 필요합니다." });
+    }
+    const settings = { ...DEFAULT_SETTINGS, ...readJson("settings", {}) };
+    const clips = [];
+    let provider;
+    for (const text of texts) {
+      const result = await generateSpeech({ text, settings });
+      provider = result.provider;
+      const filename = `narration-${randomUUID()}.${result.ext}`;
+      fs.writeFileSync(path.join(IMAGES_DIR, filename), result.buffer);
+      clips.push({ url: `/generated-images/${filename}`, mimeType: result.mimeType });
+    }
+    res.json({ clips, provider });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

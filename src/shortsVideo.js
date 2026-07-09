@@ -1,6 +1,8 @@
 // 쇼츠 영상 생성 — 서버가 만들어준 장면별 배경 이미지 위에 자막·로고를 브라우저 캔버스에서
 // 실시간으로 그리며 MediaRecorder(canvas.captureStream)로 녹화한다. 실제 영상 인코딩은 Node가
 // 아니라 브라우저(Chromium)만 할 수 있어서 이 부분은 서버가 아니라 여기서 처리한다.
+// 내레이션·배경음악은 하나의 AudioContext 안에서 믹싱해야 MediaRecorder가 소리 하나로 정확히
+// 녹화한다(오디오 트랙을 여러 개 넘기면 브라우저가 알아서 섞어주지 않는다).
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -10,6 +12,12 @@ function loadImage(url) {
     img.onerror = () => reject(new Error(`이미지를 불러오지 못했습니다: ${url}`));
     img.src = url;
   });
+}
+
+async function loadAudioBuffer(audioCtx, url) {
+  const res = await fetch(url);
+  const arrayBuffer = await res.arrayBuffer();
+  return audioCtx.decodeAudioData(arrayBuffer);
 }
 
 // 어절 단위 줄바꿈 — cardCompose.js의 wrapText와 동일한 규칙을 캔버스 2D 컨텍스트용으로 옮긴 것.
@@ -44,52 +52,18 @@ function pickMimeType(withAudio) {
   return candidates.find((t) => MediaRecorder.isTypeSupported(t)) || "video/webm";
 }
 
-// bgmFile(mp3/wav 등)을 디코딩해 영상 길이만큼 반복 재생되는 오디오 스트림으로 만든다.
-// 영상보다 짧으면 자동으로 loop, 길면 영상 길이에서 잘린다.
-async function buildBgmAudio(bgmFile, volume, durationSeconds) {
-  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-  const audioCtx = new AudioContextCtor();
-  // 브라우저 autoplay 정책 때문에 컨텍스트가 suspended 상태로 생성될 수 있다 — 그대로 두면
-  // 오디오 트랙이 샘플을 만들지 못해 MediaRecorder가 사실상 멈춘 것처럼 멈춰있게 된다.
-  if (audioCtx.state === "suspended") {
-    await audioCtx.resume();
-  }
-  const arrayBuffer = await bgmFile.arrayBuffer();
-  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-  const dest = audioCtx.createMediaStreamDestination();
-  const gainNode = audioCtx.createGain();
-  gainNode.gain.value = volume;
-  gainNode.connect(dest);
-
-  const source = audioCtx.createBufferSource();
-  source.buffer = audioBuffer;
-  source.loop = true;
-  source.connect(gainNode);
-  source.start(0);
-  source.stop(audioCtx.currentTime + durationSeconds);
-
-  return {
-    track: dest.stream.getAudioTracks()[0],
-    cleanup: () => {
-      try {
-        source.stop();
-      } catch {
-        /* 이미 멈췄으면 무시 */
-      }
-      audioCtx.close();
-    },
-  };
-}
-
 // beats: [{ text, imageUrl }]  — 화면에 나올 순서대로.
 // logoUrl이 있으면 우상단에 실제 로고를, 없으면 브랜드명 텍스트를 표시한다.
-// bgmFile(선택) — 업로드한 배경음악 File을 영상 길이에 맞춰 반복 재생하며 함께 녹화한다.
+// narrationClipUrls(선택) — beats와 같은 길이의 음성 파일 URL 배열. 있으면 각 장면의 노출 시간이
+//   해당 음성 길이에 맞춰 자동으로 늘어난다(없으면 secondsPerBeat 고정 길이 사용).
+// bgmFile(선택) — 업로드한 배경음악 File을 전체 영상 길이에 맞춰 반복 재생하며 함께 녹화한다.
+//   내레이션이 있으면 방해되지 않도록 볼륨을 자동으로 더 낮춘다.
 export async function generateShortsVideo({
   beats,
   logoUrl,
   brandName,
   secondsPerBeat = 4,
+  narrationClipUrls,
   bgmFile,
   bgmVolume = 0.5,
   onProgress,
@@ -104,43 +78,92 @@ export async function generateShortsVideo({
   const ctx = canvas.getContext("2d");
   const W = canvas.width;
   const H = canvas.height;
-
   const fps = 30;
-  const durationSeconds = beats.length * secondsPerBeat;
-  const totalFrames = durationSeconds * fps;
 
-  const videoStream = canvas.captureStream(fps);
-  let combinedStream = videoStream;
-  let bgmCleanup = null;
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContextCtor();
+  // 브라우저 autoplay 정책 때문에 컨텍스트가 suspended 상태로 생성될 수 있다 — 그대로 두면
+  // 오디오 트랙이 샘플을 만들지 못해 MediaRecorder가 사실상 멈춘 것처럼 멈춰있게 된다.
+  if (audioCtx.state === "suspended") {
+    await audioCtx.resume();
+  }
+  const dest = audioCtx.createMediaStreamDestination();
+  let hasAudio = false;
+
+  // 내레이션이 있으면 각 클립의 실제 길이로 장면별 노출 시간을 정한다(없으면 고정 길이).
+  let beatDurations = beats.map(() => secondsPerBeat);
+  if (narrationClipUrls) {
+    onProgress?.("내레이션 음성을 불러오는 중...");
+    const narrationBuffers = await Promise.all(narrationClipUrls.map((url) => loadAudioBuffer(audioCtx, url)));
+    beatDurations = narrationBuffers.map((buf) => Math.max(2.2, buf.duration + 0.6));
+
+    const narrationGain = audioCtx.createGain();
+    narrationGain.gain.value = 1;
+    narrationGain.connect(dest);
+    let offset = 0;
+    narrationBuffers.forEach((buf, i) => {
+      const source = audioCtx.createBufferSource();
+      source.buffer = buf;
+      source.connect(narrationGain);
+      source.start(audioCtx.currentTime + offset);
+      offset += beatDurations[i];
+    });
+    hasAudio = true;
+  }
+
+  const totalDuration = beatDurations.reduce((a, b) => a + b, 0);
 
   if (bgmFile) {
     onProgress?.("배경음악을 처리하는 중...");
     try {
-      const { track, cleanup } = await buildBgmAudio(bgmFile, bgmVolume, durationSeconds);
-      combinedStream = new MediaStream([...videoStream.getVideoTracks(), track]);
-      bgmCleanup = cleanup;
+      const arrayBuffer = await bgmFile.arrayBuffer();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      const gainNode = audioCtx.createGain();
+      // 내레이션이 함께 있으면 음성이 묻히지 않도록 배경음악 볼륨을 한 번 더 깎는다.
+      gainNode.gain.value = narrationClipUrls ? Math.min(bgmVolume, 0.25) : bgmVolume;
+      gainNode.connect(dest);
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.loop = true;
+      source.connect(gainNode);
+      source.start(0);
+      source.stop(audioCtx.currentTime + totalDuration);
+      hasAudio = true;
     } catch {
-      // 오디오 디코딩 실패 시 소리 없이 영상만이라도 만든다(형식 문제일 수 있음).
-      combinedStream = videoStream;
+      // 디코딩 실패 시 소리 없이 영상만이라도 만든다(형식 문제일 수 있음).
     }
   }
 
-  const mimeType = pickMimeType(!!bgmCleanup);
+  // 누적 프레임 경계 — 현재 frame이 몇 번째 장면(beat)에 속하는지 빠르게 찾기 위함.
+  const beatFrameBounds = [];
+  let acc = 0;
+  for (const d of beatDurations) {
+    acc += d * fps;
+    beatFrameBounds.push(acc);
+  }
+  const totalFrames = Math.round(totalDuration * fps);
+
+  const videoStream = canvas.captureStream(fps);
+  const combinedStream = hasAudio
+    ? new MediaStream([...videoStream.getVideoTracks(), ...dest.stream.getAudioTracks()])
+    : videoStream;
+
+  const mimeType = pickMimeType(hasAudio);
   const recorder = new MediaRecorder(combinedStream, { mimeType });
   const chunks = [];
   recorder.ondataavailable = (e) => {
     if (e.data.size) chunks.push(e.data);
   };
 
-  onProgress?.(`영상을 렌더링하는 중... (약 ${durationSeconds}초 분량)`);
+  onProgress?.(`영상을 렌더링하는 중... (약 ${Math.round(totalDuration)}초 분량)`);
 
   return new Promise((resolve, reject) => {
     recorder.onerror = (e) => {
-      bgmCleanup?.();
+      audioCtx.close();
       reject(e.error || new Error("영상 녹화 중 오류가 발생했습니다."));
     };
     recorder.onstop = () => {
-      bgmCleanup?.();
+      audioCtx.close();
       const blob = new Blob(chunks, { type: "video/webm" });
       resolve(URL.createObjectURL(blob));
     };
@@ -153,7 +176,8 @@ export async function generateShortsVideo({
         recorder.stop();
         return;
       }
-      const beatIndex = Math.min(beats.length - 1, Math.floor(frame / (secondsPerBeat * fps)));
+      let beatIndex = beatFrameBounds.findIndex((bound) => frame < bound);
+      if (beatIndex === -1) beatIndex = beats.length - 1;
       const beat = beats[beatIndex];
 
       drawCover(ctx, images[beatIndex], W, H);

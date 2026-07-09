@@ -66,6 +66,7 @@ export default function Generate({ onNavigate }) {
   const [shortsVideo, setShortsVideo] = useState({ url: "", loading: false, error: "", progress: "" });
   const [bgmFile, setBgmFile] = useState(null);
   const [bgmVolume, setBgmVolume] = useState(60);
+  const [narrationEnabled, setNarrationEnabled] = useState(false);
 
   // 새 생성물을 불러오면 이전 생성물의 이미지 상태는 초기화한다.
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function Generate({ onNavigate }) {
     setCardImages({ urls: [], loading: false, error: "" });
     setShortsVideo({ url: "", loading: false, error: "", progress: "" });
     setBgmFile(null);
+    setNarrationEnabled(false);
   }, [current?.id]);
 
   const generateBlogImage = async () => {
@@ -112,6 +114,13 @@ export default function Generate({ onNavigate }) {
       const imageUrls = res.urls.map(api.mediaUrl);
       const beats = beatsInput.map((b, i) => ({ text: b.text, imageUrl: imageUrls[i] }));
 
+      let narrationClipUrls;
+      if (narrationEnabled) {
+        setShortsVideo((prev) => ({ ...prev, progress: "AI 음성 내레이션을 생성하는 중..." }));
+        const narrationRes = await api.generateNarration(beats.map((b) => b.text));
+        narrationClipUrls = narrationRes.clips.map((c) => api.mediaUrl(c.url));
+      }
+
       const [logo, settings] = await Promise.all([
         api.getLogo().catch(() => ({ exists: false, url: null })),
         api.getSettings().catch(() => ({})),
@@ -121,6 +130,7 @@ export default function Generate({ onNavigate }) {
         beats,
         logoUrl: logo.exists ? api.mediaUrl(logo.url) : null,
         brandName: settings.brandName || "",
+        narrationClipUrls,
         bgmFile: bgmFile || undefined,
         bgmVolume: bgmVolume / 100,
         onProgress: (msg) => setShortsVideo((prev) => ({ ...prev, progress: msg })),
@@ -360,7 +370,20 @@ export default function Generate({ onNavigate }) {
                 </div>
 
                 <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--border)" }}>
-                  <label>배경음악 (선택 — mp3/wav 등 가지고 계신 파일)</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={narrationEnabled}
+                      onChange={(e) => setNarrationEnabled(e.target.checked)}
+                      disabled={shortsVideo.loading}
+                    />
+                    AI 음성 내레이션 추가 (자막을 AI 목소리로 읽어줍니다)
+                  </label>
+                  <p className="hint" style={{ marginTop: 4 }}>
+                    켜면 각 장면 노출 시간이 해당 내레이션 길이에 맞춰 자동으로 조정됩니다(장면당 4초 고정 대신).
+                  </p>
+
+                  <label style={{ marginTop: 10, display: "block" }}>배경음악 (선택 — mp3/wav 등 가지고 계신 파일)</label>
                   <input
                     type="file"
                     accept="audio/*"
