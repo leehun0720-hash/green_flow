@@ -40,6 +40,38 @@ export default function Generate({ onNavigate }) {
   const [history, setHistory] = useState([]);
   const [addedNote, setAddedNote] = useState("");
 
+  const [blogImagePrompt, setBlogImagePrompt] = useState("");
+  const [blogImage, setBlogImage] = useState({ url: "", loading: false, error: "" });
+  const [cardImages, setCardImages] = useState({ urls: [], loading: false, error: "" });
+
+  // 새 생성물을 불러오면 이전 생성물의 이미지 상태는 초기화한다.
+  useEffect(() => {
+    setBlogImagePrompt("");
+    setBlogImage({ url: "", loading: false, error: "" });
+    setCardImages({ urls: [], loading: false, error: "" });
+  }, [current?.id]);
+
+  const generateBlogImage = async () => {
+    setBlogImage({ url: "", loading: true, error: "" });
+    try {
+      const prompt = blogImagePrompt.trim() || current.result.blog.titles[0];
+      const res = await api.generateBlogImage(prompt);
+      setBlogImage({ url: res.url, loading: false, error: "" });
+    } catch (e) {
+      setBlogImage({ url: "", loading: false, error: e.message });
+    }
+  };
+
+  const generateCardImages = async () => {
+    setCardImages({ urls: [], loading: true, error: "" });
+    try {
+      const res = await api.generateCardnewsImages(current.result.cardnews.cards);
+      setCardImages({ urls: res.urls, loading: false, error: "" });
+    } catch (e) {
+      setCardImages({ urls: [], loading: false, error: e.message });
+    }
+  };
+
   const loadHistory = async () => {
     try {
       const list = await api.listGenerations();
@@ -163,6 +195,38 @@ export default function Generate({ onNavigate }) {
                     캘린더에 추가
                   </button>
                 </div>
+
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--border)" }}>
+                  <label>대표 이미지 설명 (비워두면 제목 기반 자동 생성)</label>
+                  <input
+                    type="text"
+                    value={blogImagePrompt}
+                    onChange={(e) => setBlogImagePrompt(e.target.value)}
+                    placeholder={current.result.blog.titles[0]}
+                  />
+                  <button
+                    className="ghost"
+                    style={{ marginTop: 8 }}
+                    onClick={generateBlogImage}
+                    disabled={blogImage.loading}
+                  >
+                    {blogImage.loading ? "이미지 생성 중..." : "🖼️ 대표 이미지 생성 (OpenAI 키 필요)"}
+                  </button>
+                  {blogImage.error && <div className="error-box" style={{ marginTop: 8 }}>{blogImage.error}</div>}
+                  {blogImage.url && (
+                    <div style={{ marginTop: 10 }}>
+                      <img src={blogImage.url} alt="블로그 대표 이미지" style={{ width: "100%", borderRadius: 8, display: "block" }} />
+                      <a
+                        href={blogImage.url}
+                        download
+                        className="ghost"
+                        style={{ display: "inline-block", marginTop: 6, textDecoration: "none", textAlign: "center" }}
+                      >
+                        ⬇ 다운로드
+                      </a>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="card channel-card">
@@ -220,6 +284,32 @@ export default function Generate({ onNavigate }) {
                   <button className="ghost" onClick={() => addToCalendar("cardnews")}>
                     캘린더에 추가 (인스타 자동발행)
                   </button>
+                </div>
+
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--border)" }}>
+                  <button className="ghost" onClick={generateCardImages} disabled={cardImages.loading}>
+                    {cardImages.loading ? "이미지 생성 중... (최대 1분)" : "🖼️ 카드뉴스 이미지 생성 (OpenAI 키 필요)"}
+                  </button>
+                  <p className="hint" style={{ marginTop: 6 }}>
+                    배경 1장을 AI로 생성해 7장에 재사용하고, 헤드카피·서브카피는 정확한 한글로 자동 합성합니다.
+                  </p>
+                  {cardImages.error && <div className="error-box" style={{ marginTop: 8 }}>{cardImages.error}</div>}
+                  {cardImages.urls.length > 0 && (
+                    <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 10, paddingBottom: 6 }}>
+                      {cardImages.urls.map((url, i) => (
+                        <div key={i} style={{ flexShrink: 0, width: 120 }}>
+                          <img
+                            src={url}
+                            alt={`카드뉴스 ${i + 1}장`}
+                            style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 6, display: "block" }}
+                          />
+                          <a href={url} download style={{ display: "block", textAlign: "center", fontSize: 11, marginTop: 4 }}>
+                            ⬇ {i + 1}장
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

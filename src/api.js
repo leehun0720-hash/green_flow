@@ -24,6 +24,11 @@ export const api = {
   generate: (payload) =>
     request("/generate", { method: "POST", body: JSON.stringify(payload) }),
   listGenerations: () => request("/generations"),
+
+  generateBlogImage: (prompt) =>
+    request("/images/blog", { method: "POST", body: JSON.stringify({ prompt }) }),
+  generateCardnewsImages: (cards, stylePrompt) =>
+    request("/images/cardnews", { method: "POST", body: JSON.stringify({ cards, stylePrompt }) }),
   reviewGeneration: (id, review) =>
     request(`/generations/${id}/review`, { method: "PUT", body: JSON.stringify(review) }),
 

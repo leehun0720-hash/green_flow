@@ -1,6 +1,9 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 
 import { readJson, writeJson } from "./lib/store.js";
@@ -16,10 +19,17 @@ import { runClipping } from "./lib/naver.js";
 import { publishFacebookPost, publishInstagramImage, publishInstagramReel, metaConnectionStatus } from "./lib/meta.js";
 import { startScheduler, runScheduledPublishing } from "./lib/scheduler.js";
 import { secretsStatus, setSecrets, getSecrets } from "./lib/secrets.js";
+import { generateImage } from "./lib/openaiImage.js";
+import { composeCard } from "./lib/cardCompose.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const IMAGES_DIR = path.join(__dirname, "data", "images");
+if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
+app.use("/generated-images", express.static(IMAGES_DIR));
 
 // ---------- 설정 (상주 지침: 브랜드/용어집/톤/키워드 풀) ----------
 app.get("/api/settings", (_req, res) => {
@@ -98,6 +108,58 @@ app.put("/api/generations/:id/review", (req, res) => {
   generations[idx].review = { ...generations[idx].review, ...req.body };
   writeJson("generations", generations);
   res.json(generations[idx]);
+});
+
+// ---------- 이미지 생성 — 블로그 대표 이미지 · 카드뉴스 배경(OpenAI 키 필요) ----------
+app.post("/api/images/blog", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt || !prompt.trim()) {
+      return res.status(400).json({ error: "이미지로 표현할 주제를 입력하세요." });
+    }
+    const settings = { ...DEFAULT_SETTINGS, ...readJson("settings", {}) };
+    const fullPrompt = `${prompt.trim()}. 브랜드 톤: ${settings.brandDef}. 사진 같은 고품질 블로그 대표 이미지. 텍스트·글자·워터마크·로고는 절대 포함하지 않는다.`;
+
+    const buffer = await generateImage({ prompt: fullPrompt, size: "1536x1024" });
+    const filename = `blog-${randomUUID()}.png`;
+    fs.writeFileSync(path.join(IMAGES_DIR, filename), buffer);
+    res.json({ url: `/generated-images/${filename}` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/images/cardnews", async (req, res) => {
+  try {
+    const { cards, stylePrompt } = req.body;
+    if (!Array.isArray(cards) || cards.length === 0) {
+      return res.status(400).json({ error: "카드 목록이 필요합니다." });
+    }
+    const settings = { ...DEFAULT_SETTINGS, ...readJson("settings", {}) };
+    const bgPrompt = `${
+      stylePrompt?.trim() || `${settings.brandDef}(${settings.brandModifier}) 브랜드 느낌의 추상적이고 미니멀한 그라디언트 배경 디자인`
+    }. 세로형 소셜미디어 카드뉴스용 배경 이미지. 텍스트·글자·숫자·워터마크·로고는 절대 포함하지 않는다 — 순수 배경 그래픽만.`;
+
+    const backgroundBuffer = await generateImage({ prompt: bgPrompt, size: "1024x1024" });
+
+    const urls = [];
+    for (let i = 0; i < cards.length; i++) {
+      const composed = await composeCard({
+        backgroundBuffer,
+        headline: cards[i].headline,
+        subcopy: cards[i].subcopy,
+        cardIndex: i + 1,
+        totalCards: cards.length,
+        brandLabel: settings.brandName,
+      });
+      const filename = `card-${randomUUID()}-${i + 1}.png`;
+      fs.writeFileSync(path.join(IMAGES_DIR, filename), composed);
+      urls.push(`/generated-images/${filename}`);
+    }
+    res.json({ urls });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ---------- 08 예약 발행 자동화 & 콘텐츠 캘린더 ----------

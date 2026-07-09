@@ -8,6 +8,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/api": "http://localhost:8790",
+      "/generated-images": "http://localhost:8790",
     },
   },
 });
