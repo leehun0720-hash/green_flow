@@ -17,6 +17,10 @@ export const api = {
   saveSettings: (settings) =>
     request("/settings", { method: "PUT", body: JSON.stringify(settings) }),
 
+  getLogo: () => request("/settings/logo"),
+  uploadLogo: (dataUrl) => request("/settings/logo", { method: "POST", body: JSON.stringify({ dataUrl }) }),
+  deleteLogo: () => request("/settings/logo", { method: "DELETE" }),
+
   getSecretsStatus: () => request("/secrets"),
   saveSecrets: (values) => request("/secrets", { method: "PUT", body: JSON.stringify(values) }),
   clearSecret: (key) => request(`/secrets/${key}`, { method: "DELETE" }),

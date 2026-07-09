@@ -21,15 +21,19 @@ import { startScheduler, runScheduledPublishing } from "./lib/scheduler.js";
 import { secretsStatus, setSecrets, getSecrets } from "./lib/secrets.js";
 import { generateImage } from "./lib/imageProvider.js";
 import { composeCard } from "./lib/cardCompose.js";
+import { hasLogo, getLogoBuffer, saveLogo, deleteLogo, stampLogo } from "./lib/logo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IMAGES_DIR = path.join(__dirname, "data", "images");
+const BRAND_DIR = path.join(__dirname, "data", "branding");
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
+if (!fs.existsSync(BRAND_DIR)) fs.mkdirSync(BRAND_DIR, { recursive: true });
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "8mb" }));
 app.use("/generated-images", express.static(IMAGES_DIR));
+app.use("/branding", express.static(BRAND_DIR));
 
 // ---------- 설정 (상주 지침: 브랜드/용어집/톤/키워드 풀) ----------
 app.get("/api/settings", (_req, res) => {
@@ -40,6 +44,27 @@ app.put("/api/settings", (req, res) => {
   const merged = { ...DEFAULT_SETTINGS, ...readJson("settings", {}), ...req.body };
   writeJson("settings", merged);
   res.json(merged);
+});
+
+// ---------- 브랜드 로고 — 카드뉴스·블로그 대표 이미지에 합성된다 ----------
+app.get("/api/settings/logo", (_req, res) => {
+  res.json({ exists: hasLogo(), url: hasLogo() ? `/branding/logo.png?t=${Date.now()}` : null });
+});
+
+app.post("/api/settings/logo", async (req, res) => {
+  try {
+    const { dataUrl } = req.body;
+    if (!dataUrl) return res.status(400).json({ error: "이미지 파일이 필요합니다." });
+    await saveLogo(dataUrl);
+    res.json({ exists: true, url: `/branding/logo.png?t=${Date.now()}` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete("/api/settings/logo", (_req, res) => {
+  deleteLogo();
+  res.json({ exists: false, url: null });
 });
 
 // ---------- 02 도구 스택 & 계정 준비 — API 키 관리 (설정 화면에서 즉시 입력/변경) ----------
@@ -121,8 +146,9 @@ app.post("/api/images/blog", async (req, res) => {
     const fullPrompt = `${prompt.trim()}. 브랜드 톤: ${settings.brandDef}. 사진 같은 고품질 블로그 대표 이미지. 텍스트·글자·워터마크·로고는 절대 포함하지 않는다.`;
 
     const { buffer, provider } = await generateImage({ prompt: fullPrompt, size: "1536x1024", settings });
+    const finalBuffer = hasLogo() ? await stampLogo(buffer, getLogoBuffer(), { corner: "bottom-right" }) : buffer;
     const filename = `blog-${randomUUID()}.png`;
-    fs.writeFileSync(path.join(IMAGES_DIR, filename), buffer);
+    fs.writeFileSync(path.join(IMAGES_DIR, filename), finalBuffer);
     res.json({ url: `/generated-images/${filename}`, provider });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -141,6 +167,7 @@ app.post("/api/images/cardnews", async (req, res) => {
     }. 세로형 소셜미디어 카드뉴스용 배경 이미지. 텍스트·글자·숫자·워터마크·로고는 절대 포함하지 않는다 — 순수 배경 그래픽만.`;
 
     const { buffer: backgroundBuffer, provider } = await generateImage({ prompt: bgPrompt, size: "1024x1024", settings });
+    const logoBuffer = getLogoBuffer();
 
     const urls = [];
     for (let i = 0; i < cards.length; i++) {
@@ -151,6 +178,7 @@ app.post("/api/images/cardnews", async (req, res) => {
         cardIndex: i + 1,
         totalCards: cards.length,
         brandLabel: settings.brandName,
+        logoBuffer,
       });
       const filename = `card-${randomUUID()}-${i + 1}.png`;
       fs.writeFileSync(path.join(IMAGES_DIR, filename), composed);

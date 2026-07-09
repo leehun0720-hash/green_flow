@@ -74,7 +74,7 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
-export async function composeCard({ backgroundBuffer, headline, subcopy, cardIndex, totalCards, brandLabel }) {
+export async function composeCard({ backgroundBuffer, headline, subcopy, cardIndex, totalCards, brandLabel, logoBuffer }) {
   ensureFonts();
 
   const canvas = createCanvas(SIZE, SIZE);
@@ -133,8 +133,21 @@ export async function composeCard({ backgroundBuffer, headline, subcopy, cardInd
   ctx.fillStyle = "rgba(255,255,255,0.85)";
   ctx.fillText(`${cardIndex}/${totalCards}`, padding, padding + 20);
 
-  // 브랜드 라벨 (우상단)
-  if (brandLabel) {
+  // 브랜드 로고(우상단) — 업로드된 로고가 있으면 실제 이미지를, 없으면 브랜드명 텍스트를 표시한다.
+  if (logoBuffer) {
+    const logo = await loadImage(logoBuffer);
+    const maxLogoW = 130;
+    const maxLogoH = 56;
+    const logoScale = Math.min(maxLogoW / logo.width, maxLogoH / logo.height, 1);
+    const lw = logo.width * logoScale;
+    const lh = logo.height * logoScale;
+    const lx = SIZE - padding - lw;
+    const ly = padding - 6;
+    const chipPad = 8;
+    ctx.fillStyle = "rgba(0,0,0,0.32)";
+    ctx.fillRect(lx - chipPad, ly - chipPad, lw + chipPad * 2, lh + chipPad * 2);
+    ctx.drawImage(logo, lx, ly, lw, lh);
+  } else if (brandLabel) {
     ctx.font = `bold 28px "${boldFont()}"`;
     ctx.textAlign = "right";
     ctx.fillStyle = "#ffffff";

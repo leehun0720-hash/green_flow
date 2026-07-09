@@ -43,9 +43,13 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
   const [saved, setSaved] = useState(false);
   const [health, setHealth] = useState(null);
   const [secrets, setSecrets] = useState(null);
+  const [logo, setLogo] = useState(null);
+  const [logoError, setLogoError] = useState("");
+  const [logoUploading, setLogoUploading] = useState(false);
 
   const loadHealth = () => api.health().then(setHealth).catch(() => {});
   const loadSecrets = () => api.getSecretsStatus().then(setSecrets).catch(() => {});
+  const loadLogo = () => api.getLogo().then(setLogo).catch(() => {});
 
   // 저장된 테마를 항상 최신값으로 참조하기 위한 ref — 클로저에 갇힌 값이 아니라
   // 언마운트 시점의 실제 최신 persistedTheme를 읽어야 저장 직후 이동에도 정확히 반영된다.
@@ -58,7 +62,35 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
     api.getSettings().then(setSettings);
     loadHealth();
     loadSecrets();
+    loadLogo();
   }, []);
+
+  const onLogoFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setLogoError("");
+    setLogoUploading(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await api.uploadLogo(dataUrl);
+      setLogo(res);
+    } catch (err) {
+      setLogoError(err.message);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const onLogoDelete = async () => {
+    await api.deleteLogo();
+    setLogo({ exists: false, url: null });
+  };
 
   // 테마 실시간 미리보기 — 저장 전에도 바로 눈으로 확인, 저장 안 하고 화면을 벗어나면 원래 테마로 복귀
   useEffect(() => {
@@ -147,6 +179,32 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
           <p className="hint" style={{ marginTop: 6 }}>
             클릭하면 바로 미리보기가 적용됩니다. 화면 아래 "설정 저장"을 눌러야 계속 유지됩니다.
           </p>
+        </div>
+
+        <div className="field">
+          <label>브랜드 로고</label>
+          <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>
+            업로드하면 이후 생성되는 <strong>카드뉴스 7장</strong>과 <strong>블로그 대표 이미지</strong>
+            우측/우하단에 이 로고가 자동으로 합성됩니다(투명 배경 PNG 권장). 즉시 저장되며 별도로
+            "설정 저장"을 누를 필요는 없습니다.
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {logo?.exists && (
+              <img
+                src={logo.url}
+                alt="브랜드 로고"
+                style={{ width: 64, height: 64, objectFit: "contain", background: "#20242a", borderRadius: 8, padding: 6 }}
+              />
+            )}
+            <input type="file" accept="image/*" onChange={onLogoFileChange} disabled={logoUploading} />
+            {logo?.exists && (
+              <button type="button" className="ghost" onClick={onLogoDelete}>
+                로고 삭제
+              </button>
+            )}
+          </div>
+          {logoUploading && <p className="hint" style={{ marginTop: 6 }}>업로드 중...</p>}
+          {logoError && <div className="error-box" style={{ marginTop: 8 }}>{logoError}</div>}
         </div>
       </div>
 

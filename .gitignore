@@ -4,3 +4,4 @@ dist
 server/data/*.json
 !server/data/.gitkeep
 server/data/images/
+server/data/branding/
