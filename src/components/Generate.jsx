@@ -12,9 +12,26 @@ const CHANNEL_MAP = {
   facebook: "페이스북",
 };
 
+// sections 스키마 도입 전(구버전)에 생성된 기록은 subheadings + 마크다운 문자열 body를 갖고 있다.
+// 신버전 sections 배열이 없으면 body를 문단 단위로 쪼개 같은 모양으로 변환해 화면이 깨지지 않게 한다.
+function getBlogSections(blog) {
+  if (Array.isArray(blog.sections)) return blog.sections;
+  if (typeof blog.body === "string") {
+    return blog.body
+      .split(/\n{2,}/)
+      .map((block) => block.trim())
+      .filter(Boolean)
+      .map((block) => {
+        const heading = block.match(/^#{1,6}\s*(.+)$/) || block.match(/^\*\*(.+)\*\*$/);
+        return heading ? { type: "heading", text: heading[1].trim() } : { type: "paragraph", text: block };
+      });
+  }
+  return [];
+}
+
 // 네이버 블로그 등 외부 에디터에 붙여넣을 본문을 문단 배열로 재구성한다.
 function buildBlogPlainText(blog) {
-  return blog.sections.map((s) => s.text).join("\n\n");
+  return getBlogSections(blog).map((s) => s.text).join("\n\n");
 }
 
 function buildLinkedinPlainText(linkedin) {
@@ -178,7 +195,7 @@ export default function Generate({ onNavigate }) {
                     <li key={i} style={{ fontSize: 12.5 }}>{t}</li>
                   ))}
                 </ul>
-                {current.result.blog.sections.map((s, i) =>
+                {getBlogSections(current.result.blog).map((s, i) =>
                   s.type === "heading" ? (
                     <p key={i} className="body-text" style={{ fontWeight: 700, marginTop: i ? 12 : 0 }}>{s.text}</p>
                   ) : (
