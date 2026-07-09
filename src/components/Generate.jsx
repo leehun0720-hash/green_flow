@@ -227,7 +227,7 @@ export default function Generate({ onNavigate }) {
                     onClick={generateBlogImage}
                     disabled={blogImage.loading}
                   >
-                    {blogImage.loading ? "이미지 생성 중..." : "🖼️ 대표 이미지 생성 (OpenAI 키 필요)"}
+                    {blogImage.loading ? "이미지 생성 중..." : "🖼️ 대표 이미지 생성 (OpenAI 또는 Gemini 키 필요)"}
                   </button>
                   {blogImage.error && <div className="error-box" style={{ marginTop: 8 }}>{blogImage.error}</div>}
                   {blogImage.url && (
@@ -305,7 +305,7 @@ export default function Generate({ onNavigate }) {
 
                 <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--border)" }}>
                   <button className="ghost" onClick={generateCardImages} disabled={cardImages.loading}>
-                    {cardImages.loading ? "이미지 생성 중... (최대 1분)" : "🖼️ 카드뉴스 이미지 생성 (OpenAI 키 필요)"}
+                    {cardImages.loading ? "이미지 생성 중... (최대 1분)" : "🖼️ 카드뉴스 이미지 생성 (OpenAI 또는 Gemini 키 필요)"}
                   </button>
                   <p className="hint" style={{ marginTop: 6 }}>
                     배경 1장을 AI로 생성해 7장에 재사용하고, 헤드카피·서브카피는 정확한 한글로 자동 합성합니다.

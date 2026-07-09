@@ -112,8 +112,10 @@ export default function Manual({ anchor }) {
           바꿀 수 있습니다(비워두면 각 공급자의 기본 모델을 사용합니다).
         </p>
         <p className="hint">
-          블로그 대표 이미지·카드뉴스 이미지 <strong>자동 생성 기능</strong>을 쓰려면, 텍스트 생성 공급자와
-          별개로 <strong>OpenAI(ChatGPT) 키</strong>가 반드시 있어야 합니다(3장 참고).
+          블로그 대표 이미지·카드뉴스 이미지 <strong>자동 생성 기능</strong>을 쓰려면 <strong>OpenAI(ChatGPT)
+          또는 Gemini(Google) 키</strong> 중 하나가 있어야 합니다(3장 참고). 둘 다 연결돼 있으면 설정 →
+          AI 공급자에서 고른 공급자를 우선 사용하고, 그 공급자에 이미지 생성이 안 되면(예: Claude만 있는 경우)
+          연결된 다른 하나를 자동으로 사용합니다.
         </p>
 
         <h4>2-2. 네이버 검색 API (클리핑 모니터링 — 선택, 무료)</h4>
@@ -211,10 +213,12 @@ export default function Manual({ anchor }) {
         <h4>이미지 자동 생성 (블로그 대표 이미지 · 카드뉴스 배경)</h4>
         <p>
           텍스트만으로는 표현력이 떨어지고 주목도가 낮기 때문에, 블로그 카드와 카드뉴스 카드에는 각각
-          <strong>이미지 생성 버튼</strong>이 있습니다. 이미지 생성은 <strong>OpenAI(ChatGPT) API 키</strong>가
-          별도로 필요합니다 — 콘텐츠 텍스트를 Claude나 Gemini로 생성하고 있어도, 이미지를 만들려면 설정
-          화면에 OpenAI 키를 추가로 등록해야 합니다(이미지 생성 전용이며, 텍스트 생성에 쓰는 공급자 선택과는
-          무관합니다).
+          <strong>이미지 생성 버튼</strong>이 있습니다. 이미지 생성에는 <strong>OpenAI(ChatGPT) 또는
+          Gemini(Google) API 키</strong>가 필요합니다(Claude는 이미지 생성을 지원하지 않습니다). 설정 →
+          AI 공급자에서 고른 공급자(OpenAI 또는 Gemini)가 있으면 그것을 우선 사용하고, 없거나 Claude를
+          쓰고 있다면 연결된 다른 하나(OpenAI 또는 Gemini)를 자동으로 사용합니다. 즉 콘텐츠 텍스트를
+          Gemini로 생성하고 있다면 <strong>같은 Gemini 키로 이미지까지</strong> 바로 생성할 수 있습니다 —
+          OpenAI 키가 따로 없어도 됩니다.
         </p>
         <ul>
           <li><strong>블로그 대표 이미지</strong> — 블로그 카드의 이미지 프롬프트 칸에 원하는 이미지 설명을

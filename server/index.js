@@ -19,7 +19,7 @@ import { runClipping } from "./lib/naver.js";
 import { publishFacebookPost, publishInstagramImage, publishInstagramReel, metaConnectionStatus } from "./lib/meta.js";
 import { startScheduler, runScheduledPublishing } from "./lib/scheduler.js";
 import { secretsStatus, setSecrets, getSecrets } from "./lib/secrets.js";
-import { generateImage } from "./lib/openaiImage.js";
+import { generateImage } from "./lib/imageProvider.js";
 import { composeCard } from "./lib/cardCompose.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -110,7 +110,7 @@ app.put("/api/generations/:id/review", (req, res) => {
   res.json(generations[idx]);
 });
 
-// ---------- 이미지 생성 — 블로그 대표 이미지 · 카드뉴스 배경(OpenAI 키 필요) ----------
+// ---------- 이미지 생성 — 블로그 대표 이미지 · 카드뉴스 배경(OpenAI 또는 Gemini 키 필요) ----------
 app.post("/api/images/blog", async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -120,10 +120,10 @@ app.post("/api/images/blog", async (req, res) => {
     const settings = { ...DEFAULT_SETTINGS, ...readJson("settings", {}) };
     const fullPrompt = `${prompt.trim()}. 브랜드 톤: ${settings.brandDef}. 사진 같은 고품질 블로그 대표 이미지. 텍스트·글자·워터마크·로고는 절대 포함하지 않는다.`;
 
-    const buffer = await generateImage({ prompt: fullPrompt, size: "1536x1024" });
+    const { buffer, provider } = await generateImage({ prompt: fullPrompt, size: "1536x1024", settings });
     const filename = `blog-${randomUUID()}.png`;
     fs.writeFileSync(path.join(IMAGES_DIR, filename), buffer);
-    res.json({ url: `/generated-images/${filename}` });
+    res.json({ url: `/generated-images/${filename}`, provider });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -140,7 +140,7 @@ app.post("/api/images/cardnews", async (req, res) => {
       stylePrompt?.trim() || `${settings.brandDef}(${settings.brandModifier}) 브랜드 느낌의 추상적이고 미니멀한 그라디언트 배경 디자인`
     }. 세로형 소셜미디어 카드뉴스용 배경 이미지. 텍스트·글자·숫자·워터마크·로고는 절대 포함하지 않는다 — 순수 배경 그래픽만.`;
 
-    const backgroundBuffer = await generateImage({ prompt: bgPrompt, size: "1024x1024" });
+    const { buffer: backgroundBuffer, provider } = await generateImage({ prompt: bgPrompt, size: "1024x1024", settings });
 
     const urls = [];
     for (let i = 0; i < cards.length; i++) {
@@ -156,7 +156,7 @@ app.post("/api/images/cardnews", async (req, res) => {
       fs.writeFileSync(path.join(IMAGES_DIR, filename), composed);
       urls.push(`/generated-images/${filename}`);
     }
-    res.json({ urls });
+    res.json({ urls, provider });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
