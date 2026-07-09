@@ -64,6 +64,8 @@ export default function Generate({ onNavigate }) {
   const [cardImages, setCardImages] = useState({ urls: [], loading: false, error: "" });
   const [zipDownloading, setZipDownloading] = useState(false);
   const [shortsVideo, setShortsVideo] = useState({ url: "", loading: false, error: "", progress: "" });
+  const [bgmFile, setBgmFile] = useState(null);
+  const [bgmVolume, setBgmVolume] = useState(60);
 
   // 새 생성물을 불러오면 이전 생성물의 이미지 상태는 초기화한다.
   useEffect(() => {
@@ -71,6 +73,7 @@ export default function Generate({ onNavigate }) {
     setBlogImage({ url: "", loading: false, error: "" });
     setCardImages({ urls: [], loading: false, error: "" });
     setShortsVideo({ url: "", loading: false, error: "", progress: "" });
+    setBgmFile(null);
   }, [current?.id]);
 
   const generateBlogImage = async () => {
@@ -118,6 +121,8 @@ export default function Generate({ onNavigate }) {
         beats,
         logoUrl: logo.exists ? api.mediaUrl(logo.url) : null,
         brandName: settings.brandName || "",
+        bgmFile: bgmFile || undefined,
+        bgmVolume: bgmVolume / 100,
         onProgress: (msg) => setShortsVideo((prev) => ({ ...prev, progress: msg })),
       });
 
@@ -355,13 +360,38 @@ export default function Generate({ onNavigate }) {
                 </div>
 
                 <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--border)" }}>
-                  <button className="ghost" onClick={generateShortsVideoHandler} disabled={shortsVideo.loading}>
+                  <label>배경음악 (선택 — mp3/wav 등 가지고 계신 파일)</label>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => setBgmFile(e.target.files?.[0] || null)}
+                    disabled={shortsVideo.loading}
+                  />
+                  {bgmFile && (
+                    <div style={{ marginTop: 8 }}>
+                      <label>배경음악 볼륨 ({bgmVolume}%)</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={bgmVolume}
+                        onChange={(e) => setBgmVolume(Number(e.target.value))}
+                        disabled={shortsVideo.loading}
+                        style={{ width: "100%" }}
+                      />
+                      <p className="hint" style={{ marginTop: 4 }}>
+                        선택한 곡: {bgmFile.name} — 영상 길이에 맞춰 자동으로 반복 재생됩니다.
+                      </p>
+                    </div>
+                  )}
+                  <button className="ghost" style={{ marginTop: 10 }} onClick={generateShortsVideoHandler} disabled={shortsVideo.loading}>
                     {shortsVideo.loading ? "영상 생성 중..." : "🎬 쇼츠 영상 생성 (OpenAI 또는 Gemini 키 필요)"}
                   </button>
                   <p className="hint" style={{ marginTop: 6 }}>
                     장면마다 AI 배경 이미지를 만들어 자막·로고와 함께 세로형(9:16) 영상으로 합성합니다.
                     브라우저에서 직접 녹화하는 방식이라 결과물은 WebM 형식입니다 — 대부분의 플랫폼에서
-                    업로드되지만, MP4가 꼭 필요하면 무료 변환 도구로 한 번 더 변환해주세요.
+                    업로드되지만, MP4가 꼭 필요하면 무료 변환 도구로 한 번 더 변환해주세요. 저작권이 있는
+                    음원은 사용하지 마시고, 직접 소유했거나 로열티 프리 음원만 배경음악으로 사용하세요.
                   </p>
                   {shortsVideo.loading && shortsVideo.progress && (
                     <p className="hint" style={{ marginTop: 4 }}>{shortsVideo.progress}</p>

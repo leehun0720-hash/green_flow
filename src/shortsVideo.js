@@ -37,9 +37,63 @@ function drawCover(ctx, img, w, h) {
   ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
+function pickMimeType(withAudio) {
+  const candidates = withAudio
+    ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
+    : ["video/webm;codecs=vp9", "video/webm"];
+  return candidates.find((t) => MediaRecorder.isTypeSupported(t)) || "video/webm";
+}
+
+// bgmFile(mp3/wav 등)을 디코딩해 영상 길이만큼 반복 재생되는 오디오 스트림으로 만든다.
+// 영상보다 짧으면 자동으로 loop, 길면 영상 길이에서 잘린다.
+async function buildBgmAudio(bgmFile, volume, durationSeconds) {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContextCtor();
+  // 브라우저 autoplay 정책 때문에 컨텍스트가 suspended 상태로 생성될 수 있다 — 그대로 두면
+  // 오디오 트랙이 샘플을 만들지 못해 MediaRecorder가 사실상 멈춘 것처럼 멈춰있게 된다.
+  if (audioCtx.state === "suspended") {
+    await audioCtx.resume();
+  }
+  const arrayBuffer = await bgmFile.arrayBuffer();
+  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+  const dest = audioCtx.createMediaStreamDestination();
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.value = volume;
+  gainNode.connect(dest);
+
+  const source = audioCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.loop = true;
+  source.connect(gainNode);
+  source.start(0);
+  source.stop(audioCtx.currentTime + durationSeconds);
+
+  return {
+    track: dest.stream.getAudioTracks()[0],
+    cleanup: () => {
+      try {
+        source.stop();
+      } catch {
+        /* 이미 멈췄으면 무시 */
+      }
+      audioCtx.close();
+    },
+  };
+}
+
 // beats: [{ text, imageUrl }]  — 화면에 나올 순서대로.
 // logoUrl이 있으면 우상단에 실제 로고를, 없으면 브랜드명 텍스트를 표시한다.
-export async function generateShortsVideo({ beats, logoUrl, brandName, secondsPerBeat = 4, onProgress }) {
+// bgmFile(선택) — 업로드한 배경음악 File을 영상 길이에 맞춰 반복 재생하며 함께 녹화한다.
+export async function generateShortsVideo({
+  beats,
+  logoUrl,
+  brandName,
+  secondsPerBeat = 4,
+  bgmFile,
+  bgmVolume = 0.5,
+  onProgress,
+}) {
   onProgress?.("장면 이미지를 불러오는 중...");
   const images = await Promise.all(beats.map((b) => loadImage(b.imageUrl)));
   const logoImg = logoUrl ? await loadImage(logoUrl).catch(() => null) : null;
@@ -52,23 +106,41 @@ export async function generateShortsVideo({ beats, logoUrl, brandName, secondsPe
   const H = canvas.height;
 
   const fps = 30;
-  const totalFrames = beats.length * secondsPerBeat * fps;
+  const durationSeconds = beats.length * secondsPerBeat;
+  const totalFrames = durationSeconds * fps;
 
-  const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-    ? "video/webm;codecs=vp9"
-    : "video/webm";
-  const stream = canvas.captureStream(fps);
-  const recorder = new MediaRecorder(stream, { mimeType });
+  const videoStream = canvas.captureStream(fps);
+  let combinedStream = videoStream;
+  let bgmCleanup = null;
+
+  if (bgmFile) {
+    onProgress?.("배경음악을 처리하는 중...");
+    try {
+      const { track, cleanup } = await buildBgmAudio(bgmFile, bgmVolume, durationSeconds);
+      combinedStream = new MediaStream([...videoStream.getVideoTracks(), track]);
+      bgmCleanup = cleanup;
+    } catch {
+      // 오디오 디코딩 실패 시 소리 없이 영상만이라도 만든다(형식 문제일 수 있음).
+      combinedStream = videoStream;
+    }
+  }
+
+  const mimeType = pickMimeType(!!bgmCleanup);
+  const recorder = new MediaRecorder(combinedStream, { mimeType });
   const chunks = [];
   recorder.ondataavailable = (e) => {
     if (e.data.size) chunks.push(e.data);
   };
 
-  onProgress?.(`영상을 렌더링하는 중... (약 ${beats.length * secondsPerBeat}초 분량)`);
+  onProgress?.(`영상을 렌더링하는 중... (약 ${durationSeconds}초 분량)`);
 
   return new Promise((resolve, reject) => {
-    recorder.onerror = (e) => reject(e.error || new Error("영상 녹화 중 오류가 발생했습니다."));
+    recorder.onerror = (e) => {
+      bgmCleanup?.();
+      reject(e.error || new Error("영상 녹화 중 오류가 발생했습니다."));
+    };
     recorder.onstop = () => {
+      bgmCleanup?.();
       const blob = new Blob(chunks, { type: "video/webm" });
       resolve(URL.createObjectURL(blob));
     };
