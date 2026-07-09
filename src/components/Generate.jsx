@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import JSZip from "jszip";
 import { api } from "../api.js";
 import ReviewChecklist from "./ReviewChecklist.jsx";
 import HelpLink from "./HelpLink.jsx";
@@ -60,6 +61,7 @@ export default function Generate({ onNavigate }) {
   const [blogImagePrompt, setBlogImagePrompt] = useState("");
   const [blogImage, setBlogImage] = useState({ url: "", loading: false, error: "" });
   const [cardImages, setCardImages] = useState({ urls: [], loading: false, error: "" });
+  const [zipDownloading, setZipDownloading] = useState(false);
 
   // 새 생성물을 불러오면 이전 생성물의 이미지 상태는 초기화한다.
   useEffect(() => {
@@ -86,6 +88,35 @@ export default function Generate({ onNavigate }) {
       setCardImages({ urls: res.urls, loading: false, error: "" });
     } catch (e) {
       setCardImages({ urls: [], loading: false, error: e.message });
+    }
+  };
+
+  // 카드 이미지 전체를 zip 하나로 묶어 한 번에 다운로드한다(개별 파일 저장 없이 폴더처럼 받을 수 있게).
+  const downloadCardImagesZip = async () => {
+    setZipDownloading(true);
+    try {
+      const zip = new JSZip();
+      const results = await Promise.all(
+        cardImages.urls.map(async (url, i) => {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`${i + 1}장 다운로드 실패 (${res.status})`);
+          return { i, blob: await res.blob() };
+        }),
+      );
+      results.forEach(({ i, blob }) => zip.file(`카드뉴스_${String(i + 1).padStart(2, "0")}.png`, blob));
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = zipUrl;
+      a.download = `카드뉴스_${current.id.slice(0, 8)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(zipUrl);
+    } catch (e) {
+      setCardImages((prev) => ({ ...prev, error: e.message }));
+    } finally {
+      setZipDownloading(false);
     }
   };
 
@@ -312,20 +343,30 @@ export default function Generate({ onNavigate }) {
                   </p>
                   {cardImages.error && <div className="error-box" style={{ marginTop: 8 }}>{cardImages.error}</div>}
                   {cardImages.urls.length > 0 && (
-                    <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 10, paddingBottom: 6 }}>
-                      {cardImages.urls.map((url, i) => (
-                        <div key={i} style={{ flexShrink: 0, width: 120 }}>
-                          <img
-                            src={url}
-                            alt={`카드뉴스 ${i + 1}장`}
-                            style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 6, display: "block" }}
-                          />
-                          <a href={url} download style={{ display: "block", textAlign: "center", fontSize: 11, marginTop: 4 }}>
-                            ⬇ {i + 1}장
-                          </a>
-                        </div>
-                      ))}
-                    </div>
+                    <>
+                      <button
+                        className="ghost"
+                        style={{ marginTop: 10 }}
+                        onClick={downloadCardImagesZip}
+                        disabled={zipDownloading}
+                      >
+                        {zipDownloading ? "압축 중..." : `⬇ 전체 ${cardImages.urls.length}장 zip으로 다운로드`}
+                      </button>
+                      <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 10, paddingBottom: 6 }}>
+                        {cardImages.urls.map((url, i) => (
+                          <div key={i} style={{ flexShrink: 0, width: 120 }}>
+                            <img
+                              src={url}
+                              alt={`카드뉴스 ${i + 1}장`}
+                              style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 6, display: "block" }}
+                            />
+                            <a href={url} download style={{ display: "block", textAlign: "center", fontSize: 11, marginTop: 4 }}>
+                              ⬇ {i + 1}장만
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
