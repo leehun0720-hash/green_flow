@@ -75,7 +75,7 @@ export default function Generate({ onNavigate }) {
     try {
       const prompt = blogImagePrompt.trim() || current.result.blog.titles[0];
       const res = await api.generateBlogImage(prompt);
-      setBlogImage({ url: res.url, loading: false, error: "" });
+      setBlogImage({ url: api.mediaUrl(res.url), loading: false, error: "" });
     } catch (e) {
       setBlogImage({ url: "", loading: false, error: e.message });
     }
@@ -85,7 +85,7 @@ export default function Generate({ onNavigate }) {
     setCardImages({ urls: [], loading: true, error: "" });
     try {
       const res = await api.generateCardnewsImages(current.result.cardnews.cards);
-      setCardImages({ urls: res.urls, loading: false, error: "" });
+      setCardImages({ urls: res.urls.map(api.mediaUrl), loading: false, error: "" });
     } catch (e) {
       setCardImages({ urls: [], loading: false, error: e.message });
     }

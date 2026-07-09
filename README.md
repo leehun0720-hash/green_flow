@@ -65,10 +65,30 @@ npm run build     # dist/ 에 정적 파일 생성
 npm run start      # API 서버만 실행 (정적 파일은 별도 호스팅 또는 리버스 프록시로 서빙)
 ```
 
+## 데스크톱 앱(Windows) 빌드
+
+Express 백엔드까지 통째로 담은 Windows 설치 프로그램을 만들 수 있습니다(서버·스케줄러가 앱 안에서
+직접 구동되며, 창을 닫아도 트레이로 최소화되어 예약 발행이 계속 동작합니다).
+
+```bash
+npm run electron:dev   # 패키징 없이 Electron으로 바로 실행해 확인(개발용)
+npm run dist:win       # release/Greenflow Setup x.x.x.exe 생성
+```
+
+- 설정·API 키·생성된 이미지는 설치 폴더가 아닌 사용자 데이터 폴더(`%APPDATA%\Greenflow`)에 저장됩니다.
+- 트레이 메뉴: **열기**(창 다시 보이기) / **완전 종료**.
+- `npm run dist:win` 실행 시 `EPERM: operation not permitted, rename ... win-unpacked.tmp`
+  오류가 나면, Windows Defender의 "제어된 폴더 접근(Controlled folder access)"이 프로젝트가 있는
+  폴더(특히 다운로드 폴더)에 대한 쓰기를 막고 있을 가능성이 높습니다. 프로젝트를 다운로드 폴더 밖으로
+  옮기거나, Windows 보안 설정에서 해당 폴더를 예외로 추가한 뒤 다시 시도하세요.
+
 ## 폴더 구조
 
 ```
 index.html
+electron/
+  main.js                  # Electron 메인 프로세스 — 서버 기동, 창/트레이 관리
+  preload.cjs               # window.__API_BASE__ 를 렌더러에 전달
 src/
   App.jsx                 # 탭 내비게이션
   components/

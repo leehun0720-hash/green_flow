@@ -3,10 +3,9 @@ import express from "express";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 
-import { readJson, writeJson } from "./lib/store.js";
+import { readJson, writeJson, DATA_DIR } from "./lib/store.js";
 import {
   DEFAULT_SETTINGS,
   buildSystemPrompt,
@@ -23,9 +22,8 @@ import { generateImage } from "./lib/imageProvider.js";
 import { composeCard } from "./lib/cardCompose.js";
 import { hasLogo, getLogoBuffer, saveLogo, deleteLogo, stampLogo } from "./lib/logo.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const IMAGES_DIR = path.join(__dirname, "data", "images");
-const BRAND_DIR = path.join(__dirname, "data", "branding");
+const IMAGES_DIR = path.join(DATA_DIR, "images");
+const BRAND_DIR = path.join(DATA_DIR, "branding");
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 if (!fs.existsSync(BRAND_DIR)) fs.mkdirSync(BRAND_DIR, { recursive: true });
 
@@ -336,9 +334,23 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-const PORT = process.env.API_PORT || 8790;
-app.listen(PORT, () => {
-  console.log(`greenflow content automation API listening on http://localhost:${PORT}`);
-  // 08 예약 발행 자동화 — 1분마다 예약된 SNS 게시물을 확인해 자동 발행
-  startScheduler();
-});
+// Electron 메인 프로세스는 이 함수를 직접 호출해 동적으로 찾은 빈 포트로 서버를 띄운다.
+// 일반 웹 개발/배포(npm run dev, npm start)에서는 아래에서 즉시 자동 기동된다.
+export function startServer(port) {
+  return new Promise((resolve, reject) => {
+    const server = app
+      .listen(port, () => {
+        console.log(`greenflow content automation API listening on http://localhost:${port}`);
+        // 08 예약 발행 자동화 — 1분마다 예약된 SNS 게시물을 확인해 자동 발행
+        startScheduler();
+        resolve(server);
+      })
+      .on("error", reject);
+  });
+}
+
+// Electron 앱에서는 main.js가 startServer()를 직접 호출하므로 여기서 자동 기동하지 않는다.
+if (process.env.GREENFLOW_ELECTRON !== "1") {
+  const PORT = process.env.API_PORT || 8790;
+  startServer(PORT);
+}

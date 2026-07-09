@@ -1,4 +1,8 @@
-const BASE = "/api";
+// Electron 패키징 앱은 preload.js가 window.__API_BASE__ 로 실제 백엔드 origin(예:
+// http://localhost:53214)을 주입한다 — 렌더러가 file:// 로 로드되어 상대 경로("/api")로는
+// 백엔드에 도달할 수 없기 때문이다. 웹 개발/배포 환경에서는 이 값이 없으므로 기존처럼 동작한다.
+const API_ORIGIN = (typeof window !== "undefined" && window.__API_BASE__) || "";
+const BASE = `${API_ORIGIN}/api`;
 
 async function request(path, options) {
   const res = await fetch(`${BASE}${path}`, {
@@ -10,7 +14,14 @@ async function request(path, options) {
   return data;
 }
 
+// 서버가 돌려주는 /generated-images, /branding 같은 상대 경로를 실제 백엔드 origin과 합쳐준다.
+function mediaUrl(p) {
+  if (!p) return p;
+  return `${API_ORIGIN}${p}`;
+}
+
 export const api = {
+  mediaUrl,
   health: () => request("/health"),
 
   getSettings: () => request("/settings"),

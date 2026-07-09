@@ -49,7 +49,11 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
 
   const loadHealth = () => api.health().then(setHealth).catch(() => {});
   const loadSecrets = () => api.getSecretsStatus().then(setSecrets).catch(() => {});
-  const loadLogo = () => api.getLogo().then(setLogo).catch(() => {});
+  const loadLogo = () =>
+    api
+      .getLogo()
+      .then((res) => setLogo({ ...res, url: api.mediaUrl(res.url) }))
+      .catch(() => {});
 
   // 저장된 테마를 항상 최신값으로 참조하기 위한 ref — 클로저에 갇힌 값이 아니라
   // 언마운트 시점의 실제 최신 persistedTheme를 읽어야 저장 직후 이동에도 정확히 반영된다.
@@ -79,7 +83,7 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
         reader.readAsDataURL(file);
       });
       const res = await api.uploadLogo(dataUrl);
-      setLogo(res);
+      setLogo({ ...res, url: api.mediaUrl(res.url) });
     } catch (err) {
       setLogoError(err.message);
     } finally {

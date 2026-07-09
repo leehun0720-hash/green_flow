@@ -3,12 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -k -n web,api -c cyan,magenta \"vite\" \"node server/index.js\"",
     "server": "node server/index.js",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "electron:dev": "vite build && electron .",
+    "dist:win": "vite build && electron-builder --win"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
@@ -25,6 +28,38 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.2",
     "concurrently": "^8.2.2",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
     "vite": "^5.4.10"
+  },
+  "build": {
+    "appId": "com.tenai.greenflow",
+    "productName": "Greenflow",
+    "icon": "build/icon.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "server/**",
+      "electron/**",
+      "package.json",
+      "!server/data/**"
+    ],
+    "asarUnpack": [
+      "node_modules/@napi-rs/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "language": "1042"
+    }
   }
 }

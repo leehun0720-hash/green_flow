@@ -1,11 +1,10 @@
 // 브랜드 로고 저장/조회 — 카드뉴스·블로그 대표 이미지에 실제 로고를 합성하기 위해 사용한다.
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { DATA_DIR } from "./store.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BRAND_DIR = path.join(__dirname, "..", "data", "branding");
+const BRAND_DIR = path.join(DATA_DIR, "branding");
 const LOGO_PATH = path.join(BRAND_DIR, "logo.png");
 
 if (!fs.existsSync(BRAND_DIR)) fs.mkdirSync(BRAND_DIR, { recursive: true });
