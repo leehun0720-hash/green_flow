@@ -74,6 +74,9 @@ ${s.toneGuide}
 
 # 채널별 규격
 - 네이버 블로그: 1,500~2,000자. 제목 3안(타깃 키워드 포함, 25자 내). 구조: 문제 제기 → 핵심 내용 → 실무 시사점 → ${s.brandName} 연결(광고성 최소화) → 요약. 소제목 3~4개. 기사 원문 그대로 복붙 금지(중복 문서 판정 위험) — 반드시 재구성.
+  본문은 반드시 sections 배열(heading/paragraph 블록의 순서 있는 목록)로 반환한다 — 하나의 긴 문자열로 합치지 말 것.
+  각 소제목은 type:"heading" 블록 하나, 그 아래 본문은 type:"paragraph" 블록 하나 이상(문단 하나=한 흐름의 생각, 3~5문장)으로 나눈다.
+  문단 내부에서 임의로 줄바꿈을 넣지 말고(그대로 붙여넣기했을 때 어색한 개행이 생김), 한 문단은 한 줄의 이어진 문장으로 작성한다.
 - LinkedIn: 대표 명의 1인칭, 600자 내외. 첫 줄은 스크롤을 멈추는 한 문장. 핵심 인사이트 3줄 요약 + 질문형 마무리. 해시태그 3개(고정 2개 ${s.hashtagFixed.map((h) => "#" + h).join(" ")} + 주제 태그 1개).
 - 쇼츠 스크립트: 30~45초. [자막]/[화면 지시] 2열 구조. 첫 3초 훅 필수. 1영상 1메시지만. 마지막 컷에 CTA("프로필 링크에서 확인").
 - 카드뉴스: 7장 고정. 장별 헤드카피(15자 내) + 서브카피(40자 내). 1장은 숫자·질문 훅, 7장은 CTA+로고. 장당 3줄 초과 금지.
@@ -105,10 +108,20 @@ export const GENERATION_SCHEMA = {
         additionalProperties: false,
         properties: {
           titles: { type: "array", items: { type: "string" } },
-          subheadings: { type: "array", items: { type: "string" } },
-          body: { type: "string" },
+          sections: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                type: { type: "string", enum: ["heading", "paragraph"] },
+                text: { type: "string" },
+              },
+              required: ["type", "text"],
+            },
+          },
         },
-        required: ["titles", "subheadings", "body"],
+        required: ["titles", "sections"],
       },
       linkedin: {
         type: "object",

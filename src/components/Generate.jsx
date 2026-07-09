@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../api.js";
 import ReviewChecklist from "./ReviewChecklist.jsx";
 import HelpLink from "./HelpLink.jsx";
+import CopyButton from "./CopyButton.jsx";
 
 const CHANNEL_MAP = {
   blog: "블로그",
@@ -10,6 +11,24 @@ const CHANNEL_MAP = {
   cardnews: "카드뉴스",
   facebook: "페이스북",
 };
+
+// 네이버 블로그 등 외부 에디터에 붙여넣을 본문을 문단 배열로 재구성한다.
+function buildBlogPlainText(blog) {
+  return blog.sections.map((s) => s.text).join("\n\n");
+}
+
+function buildLinkedinPlainText(linkedin) {
+  return `${linkedin.post}\n\n${linkedin.hashtags.map((h) => `#${h}`).join(" ")}`;
+}
+
+function buildShortsPlainText(shorts) {
+  const scenes = shorts.scenes.map((s, i) => `${i + 1}. [자막] ${s.caption}\n   [화면 지시] ${s.direction}`).join("\n\n");
+  return `훅: ${shorts.hook}\n\n${scenes}\n\nCTA: ${shorts.cta}`;
+}
+
+function buildCardnewsPlainText(cardnews) {
+  return cardnews.cards.map((c, i) => `${i + 1}장 — ${c.headline}\n${c.subcopy}`).join("\n\n");
+}
 
 export default function Generate({ onNavigate }) {
   const [source, setSource] = useState("");
@@ -127,10 +146,23 @@ export default function Generate({ onNavigate }) {
                     <li key={i} style={{ fontSize: 12.5 }}>{t}</li>
                   ))}
                 </ul>
-                <p className="body-text">{current.result.blog.body}</p>
-                <button className="ghost" style={{ marginTop: 10 }} onClick={() => addToCalendar("blog")}>
-                  캘린더에 추가
-                </button>
+                {current.result.blog.sections.map((s, i) =>
+                  s.type === "heading" ? (
+                    <p key={i} className="body-text" style={{ fontWeight: 700, marginTop: i ? 12 : 0 }}>{s.text}</p>
+                  ) : (
+                    <p key={i} className="body-text" style={{ marginTop: 8 }}>{s.text}</p>
+                  ),
+                )}
+                <p className="hint" style={{ marginTop: 8 }}>
+                  "복사"는 서식 없는 텍스트만 복사합니다 — 스마트에디터에 붙여넣은 뒤 소제목 줄만 선택해
+                  "소제목" 서식으로 지정하세요.
+                </p>
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <CopyButton getText={() => buildBlogPlainText(current.result.blog)} label="본문 복사" />
+                  <button className="ghost" onClick={() => addToCalendar("blog")}>
+                    캘린더에 추가
+                  </button>
+                </div>
               </div>
 
               <div className="card channel-card">
@@ -139,7 +171,8 @@ export default function Generate({ onNavigate }) {
                 <p className="hint" style={{ marginTop: 8 }}>
                   {current.result.linkedin.hashtags.map((h) => `#${h}`).join(" ")}
                 </p>
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <CopyButton getText={() => buildLinkedinPlainText(current.result.linkedin)} />
                   <button className="ghost" onClick={() => addToCalendar("linkedin")}>
                     캘린더에 추가
                   </button>
@@ -166,9 +199,12 @@ export default function Generate({ onNavigate }) {
                   </tbody>
                 </table>
                 <p className="hint" style={{ marginTop: 6 }}>CTA: {current.result.shorts.cta}</p>
-                <button className="ghost" style={{ marginTop: 10 }} onClick={() => addToCalendar("shorts")}>
-                  캘린더에 추가
-                </button>
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <CopyButton getText={() => buildShortsPlainText(current.result.shorts)} />
+                  <button className="ghost" onClick={() => addToCalendar("shorts")}>
+                    캘린더에 추가
+                  </button>
+                </div>
               </div>
 
               <div className="card channel-card">
@@ -179,9 +215,12 @@ export default function Generate({ onNavigate }) {
                     <div className="hint">{c.subcopy}</div>
                   </div>
                 ))}
-                <button className="ghost" style={{ marginTop: 10 }} onClick={() => addToCalendar("cardnews")}>
-                  캘린더에 추가 (인스타 자동발행)
-                </button>
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <CopyButton getText={() => buildCardnewsPlainText(current.result.cardnews)} />
+                  <button className="ghost" onClick={() => addToCalendar("cardnews")}>
+                    캘린더에 추가 (인스타 자동발행)
+                  </button>
+                </div>
               </div>
             </div>
 
