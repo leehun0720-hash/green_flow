@@ -22,6 +22,15 @@ import { generateImage } from "./lib/imageProvider.js";
 import { composeCard } from "./lib/cardCompose.js";
 import { hasLogo, getLogoBuffer, saveLogo, deleteLogo, stampLogo } from "./lib/logo.js";
 
+// 스케줄러가 1분마다 도는 장기 구동 프로세스이므로, 요청 하나·타이머 콜백 하나에서 새는 예외가
+// 프로세스 전체를 죽이지 않도록 막는다(기본 동작은 Node가 종료해버리는 것 — 예약 발행이 통째로 멈춤).
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
+process.on("unhandledRejection", (err) => {
+  console.error("[unhandledRejection]", err);
+});
+
 const IMAGES_DIR = path.join(DATA_DIR, "images");
 const BRAND_DIR = path.join(DATA_DIR, "branding");
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });

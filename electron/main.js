@@ -8,6 +8,15 @@ import net from "net";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ICON_PATH = path.join(__dirname, "..", "build", "icon.png");
 
+// 트레이로 상주하며 스케줄러를 돌리는 앱이므로, 메인 프로세스 어딘가에서 새는 예외 하나로
+// 앱 전체가 조용히 죽어버리는 것을 막는다(원인 파악도 안 된 채 스케줄러가 멈추는 사고 방지).
+process.on("uncaughtException", (err) => {
+  console.error("[main uncaughtException]", err);
+});
+process.on("unhandledRejection", (err) => {
+  console.error("[main unhandledRejection]", err);
+});
+
 // package.json의 "name"(greenflow-content-automation) 대신 사용자 데이터 폴더 이름을
 // productName과 맞춰 예측 가능하게 만든다(app.getPath('userData')가 이 이름을 사용한다).
 app.setName("Greenflow");
@@ -72,6 +81,14 @@ if (!gotLock) {
     });
 
     mainWindow.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+
+    // 렌더러(화면)가 죽어도(예: 메모리 부족) 창이 영구히 빈 화면으로 남지 않도록 자동으로 다시 로드한다.
+    mainWindow.webContents.on("render-process-gone", (_e, details) => {
+      console.error("[render-process-gone]", details.reason);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+      }
+    });
 
     // 창을 닫아도 앱을 종료하지 않고 트레이로 최소화한다 — 예약 발행 스케줄러가
     // 계속 동작해야 하기 때문이다. 완전 종료는 트레이 메뉴의 "완전 종료"로만 가능하다.

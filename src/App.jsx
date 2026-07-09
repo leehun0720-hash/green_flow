@@ -7,6 +7,7 @@ import Clipping from "./components/Clipping.jsx";
 import Report from "./components/Report.jsx";
 import Settings from "./components/Settings.jsx";
 import Manual from "./components/Manual.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
 const TABS = [
   { id: "dashboard", label: "대시보드", icon: "🏠" },
@@ -63,15 +64,17 @@ export default function App() {
         ))}
       </aside>
       <main className="main">
-        {tab === "dashboard" && <Dashboard onNavigate={goTo} />}
-        {tab === "generate" && <Generate onNavigate={goTo} />}
-        {tab === "calendar" && <Calendar onNavigate={goTo} />}
-        {tab === "clipping" && <Clipping onNavigate={goTo} />}
-        {tab === "report" && <Report onNavigate={goTo} />}
-        {tab === "settings" && (
-          <Settings onNavigate={goTo} onSettingsSaved={loadUi} persistedTheme={ui.theme} />
-        )}
-        {tab === "manual" && <Manual anchor={manualAnchor} />}
+        <ErrorBoundary key={tab}>
+          {tab === "dashboard" && <Dashboard onNavigate={goTo} />}
+          {tab === "generate" && <Generate onNavigate={goTo} />}
+          {tab === "calendar" && <Calendar onNavigate={goTo} />}
+          {tab === "clipping" && <Clipping onNavigate={goTo} />}
+          {tab === "report" && <Report onNavigate={goTo} />}
+          {tab === "settings" && (
+            <Settings onNavigate={goTo} onSettingsSaved={loadUi} persistedTheme={ui.theme} />
+          )}
+          {tab === "manual" && <Manual anchor={manualAnchor} />}
+        </ErrorBoundary>
       </main>
     </div>
   );
