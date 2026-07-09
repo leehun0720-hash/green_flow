@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import JSZip from "jszip";
 import { api } from "../api.js";
+import { generateShortsVideo } from "../shortsVideo.js";
 import ReviewChecklist from "./ReviewChecklist.jsx";
 import HelpLink from "./HelpLink.jsx";
 import CopyButton from "./CopyButton.jsx";
@@ -62,12 +63,14 @@ export default function Generate({ onNavigate }) {
   const [blogImage, setBlogImage] = useState({ url: "", loading: false, error: "" });
   const [cardImages, setCardImages] = useState({ urls: [], loading: false, error: "" });
   const [zipDownloading, setZipDownloading] = useState(false);
+  const [shortsVideo, setShortsVideo] = useState({ url: "", loading: false, error: "", progress: "" });
 
   // 새 생성물을 불러오면 이전 생성물의 이미지 상태는 초기화한다.
   useEffect(() => {
     setBlogImagePrompt("");
     setBlogImage({ url: "", loading: false, error: "" });
     setCardImages({ urls: [], loading: false, error: "" });
+    setShortsVideo({ url: "", loading: false, error: "", progress: "" });
   }, [current?.id]);
 
   const generateBlogImage = async () => {
@@ -88,6 +91,39 @@ export default function Generate({ onNavigate }) {
       setCardImages({ urls: res.urls.map(api.mediaUrl), loading: false, error: "" });
     } catch (e) {
       setCardImages({ urls: [], loading: false, error: e.message });
+    }
+  };
+
+  // 쇼츠 대본(훅·장면·CTA)을 장면별 배경 이미지 + 자막을 합성한 세로형(9:16) 영상으로 만든다.
+  const generateShortsVideoHandler = async () => {
+    setShortsVideo({ url: "", loading: true, error: "", progress: "장면별 배경 이미지를 생성하는 중... (최대 1~2분)" });
+    try {
+      const shorts = current.result.shorts;
+      const beatsInput = [
+        { text: shorts.hook, prompt: shorts.scenes[0]?.direction || `${current.purpose || "핵심 메시지"} 도입부 장면` },
+        ...shorts.scenes.map((s) => ({ text: s.caption, prompt: s.direction })),
+        { text: shorts.cta, prompt: "밝고 신뢰감 있는 마무리 장면" },
+      ];
+
+      const res = await api.generateShortsImages(beatsInput.map((b) => b.prompt));
+      const imageUrls = res.urls.map(api.mediaUrl);
+      const beats = beatsInput.map((b, i) => ({ text: b.text, imageUrl: imageUrls[i] }));
+
+      const [logo, settings] = await Promise.all([
+        api.getLogo().catch(() => ({ exists: false, url: null })),
+        api.getSettings().catch(() => ({})),
+      ]);
+
+      const videoUrl = await generateShortsVideo({
+        beats,
+        logoUrl: logo.exists ? api.mediaUrl(logo.url) : null,
+        brandName: settings.brandName || "",
+        onProgress: (msg) => setShortsVideo((prev) => ({ ...prev, progress: msg })),
+      });
+
+      setShortsVideo({ url: videoUrl, loading: false, error: "", progress: "" });
+    } catch (e) {
+      setShortsVideo({ url: "", loading: false, error: e.message, progress: "" });
     }
   };
 
@@ -316,6 +352,38 @@ export default function Generate({ onNavigate }) {
                   <button className="ghost" onClick={() => addToCalendar("shorts")}>
                     캘린더에 추가
                   </button>
+                </div>
+
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--border)" }}>
+                  <button className="ghost" onClick={generateShortsVideoHandler} disabled={shortsVideo.loading}>
+                    {shortsVideo.loading ? "영상 생성 중..." : "🎬 쇼츠 영상 생성 (OpenAI 또는 Gemini 키 필요)"}
+                  </button>
+                  <p className="hint" style={{ marginTop: 6 }}>
+                    장면마다 AI 배경 이미지를 만들어 자막·로고와 함께 세로형(9:16) 영상으로 합성합니다.
+                    브라우저에서 직접 녹화하는 방식이라 결과물은 WebM 형식입니다 — 대부분의 플랫폼에서
+                    업로드되지만, MP4가 꼭 필요하면 무료 변환 도구로 한 번 더 변환해주세요.
+                  </p>
+                  {shortsVideo.loading && shortsVideo.progress && (
+                    <p className="hint" style={{ marginTop: 4 }}>{shortsVideo.progress}</p>
+                  )}
+                  {shortsVideo.error && <div className="error-box" style={{ marginTop: 8 }}>{shortsVideo.error}</div>}
+                  {shortsVideo.url && (
+                    <div style={{ marginTop: 10 }}>
+                      <video
+                        src={shortsVideo.url}
+                        controls
+                        style={{ width: "100%", maxWidth: 260, borderRadius: 8, display: "block", background: "#000" }}
+                      />
+                      <a
+                        href={shortsVideo.url}
+                        download={`쇼츠영상_${current.id.slice(0, 8)}.webm`}
+                        className="ghost"
+                        style={{ display: "inline-block", marginTop: 6, textDecoration: "none", textAlign: "center" }}
+                      >
+                        ⬇ 다운로드 (.webm)
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
 

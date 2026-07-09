@@ -197,6 +197,31 @@ app.post("/api/images/cardnews", async (req, res) => {
   }
 });
 
+// 쇼츠 영상용 장면별 배경 이미지 — 텍스트·로고 합성과 실제 영상 녹화(MediaRecorder)는
+// 브라우저에서 진행하므로, 여기서는 순수 배경 이미지들만 세로형(9:16)으로 생성해 돌려준다.
+app.post("/api/images/shorts", async (req, res) => {
+  try {
+    const { prompts } = req.body;
+    if (!Array.isArray(prompts) || prompts.length === 0) {
+      return res.status(400).json({ error: "장면별 이미지 프롬프트가 필요합니다." });
+    }
+    const settings = { ...DEFAULT_SETTINGS, ...readJson("settings", {}) };
+    const urls = [];
+    let provider;
+    for (const p of prompts) {
+      const fullPrompt = `${p}. 브랜드 톤: ${settings.brandDef}. 세로형 숏폼 영상 배경 이미지, 영화 같은 고품질. 텍스트·글자·자막·워터마크·로고는 절대 포함하지 않는다.`;
+      const result = await generateImage({ prompt: fullPrompt, size: "1024x1536", settings });
+      provider = result.provider;
+      const filename = `shorts-${randomUUID()}.png`;
+      fs.writeFileSync(path.join(IMAGES_DIR, filename), result.buffer);
+      urls.push(`/generated-images/${filename}`);
+    }
+    res.json({ urls, provider });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---------- 08 예약 발행 자동화 & 콘텐츠 캘린더 ----------
 app.get("/api/calendar", (_req, res) => {
   res.json(readJson("calendar", []));
