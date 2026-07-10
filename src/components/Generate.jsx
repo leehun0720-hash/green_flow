@@ -343,6 +343,11 @@ export default function Generate({ onNavigate }) {
                     페이스북에 추가 (자동발행)
                   </button>
                 </div>
+                <p className="hint" style={{ marginTop: 6 }}>
+                  회사 페이스북 페이지는 별도 콘텐츠를 만들지 않고, 위 LinkedIn 원고를 그대로 캡션으로 재사용해
+                  자동 발행합니다("페이스북에 추가"를 누르면 캘린더에 페이스북 행이 별도로 생깁니다 — LinkedIn
+                  게시물과는 별개로 발행 예약·URL을 관리할 수 있습니다).
+                </p>
               </div>
 
               <div className="card channel-card">

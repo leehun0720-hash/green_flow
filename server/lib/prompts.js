@@ -78,7 +78,7 @@ ${s.toneGuide}
   각 소제목은 type:"heading" 블록 하나, 그 아래 본문은 type:"paragraph" 블록 하나 이상(문단 하나=한 흐름의 생각, 3~5문장)으로 나눈다.
   문단 내부에서 임의로 줄바꿈을 넣지 말고(그대로 붙여넣기했을 때 어색한 개행이 생김), 한 문단은 한 줄의 이어진 문장으로 작성한다.
 - LinkedIn: 대표 명의 1인칭, 600자 내외. 첫 줄은 스크롤을 멈추는 한 문장. 핵심 인사이트 3줄 요약 + 질문형 마무리. 해시태그 3개(고정 2개 ${s.hashtagFixed.map((h) => "#" + h).join(" ")} + 주제 태그 1개).
-- 쇼츠 스크립트: 30~45초. [자막]/[화면 지시] 2열 구조. 첫 3초 훅 필수. 1영상 1메시지만. 마지막 컷에 CTA("프로필 링크에서 확인").
+- 쇼츠 스크립트: 30~45초. hook은 영상의 첫 번째 컷(3~4초)에 나오는 문장이고, scenes 배열은 그 다음부터 이어지는 장면들이다 — scenes[0]는 hook 바로 다음(두 번째 컷)에 나오는 장면이므로 hook과 똑같은 문장을 반복하지 않는다(같은 메시지를 두 번 말하지 말고, hook에서 던진 질문·후킹에 곧바로 답하거나 다음 내용으로 자연스럽게 이어간다). [자막]/[화면 지시] 2열 구조. 1영상 1메시지만. 마지막 컷에 CTA("프로필 링크에서 확인").
 - 카드뉴스: 7장 고정. 장별 헤드카피(15자 내) + 서브카피(40자 내). 1장은 숫자·질문 훅, 7장은 CTA+로고. 장당 3줄 초과 금지.
 
 # 출력 규칙
@@ -136,9 +136,15 @@ export const GENERATION_SCHEMA = {
         type: "object",
         additionalProperties: false,
         properties: {
-          hook: { type: "string" },
+          hook: {
+            type: "string",
+            description:
+              "영상의 첫 번째 컷(3~4초)에 나오는 문장. scenes[0]의 자막과 절대 동일한 문장이면 안 된다.",
+          },
           scenes: {
             type: "array",
+            description:
+              "hook 다음(두 번째 컷)부터 이어지는 장면들. scenes[0].caption은 hook과 다른 문장이어야 하며, hook에서 던진 훅에 이어지는 다음 내용을 담는다.",
             items: {
               type: "object",
               additionalProperties: false,
