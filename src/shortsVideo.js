@@ -1,17 +1,33 @@
-// 쇼츠 영상 생성 — 서버가 만들어준 장면별 배경 이미지 위에 자막·로고를 브라우저 캔버스에서
-// 실시간으로 그리며 MediaRecorder(canvas.captureStream)로 녹화한다. 실제 영상 인코딩은 Node가
-// 아니라 브라우저(Chromium)만 할 수 있어서 이 부분은 서버가 아니라 여기서 처리한다.
+// 쇼츠 영상 생성 — 서버(Seedance 2.0)가 만들어준 장면별 배경 "영상 클립" 위에 자막·로고를
+// 브라우저 캔버스에서 실시간으로 그리며 MediaRecorder(canvas.captureStream)로 다시 녹화한다.
 // 내레이션·배경음악은 하나의 AudioContext 안에서 믹싱해야 MediaRecorder가 소리 하나로 정확히
 // 녹화한다(오디오 트랙을 여러 개 넘기면 브라우저가 알아서 섞어주지 않는다).
 
-function loadImage(url) {
+function loadVideo(url) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`이미지를 불러오지 못했습니다: ${url}`));
-    img.src = url;
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true; // Seedance 배경 클립은 소리를 쓰지 않는다(내레이션·BGM을 따로 믹싱)
+    video.playsInline = true;
+    video.preload = "auto";
+    video.onloadeddata = () => resolve(video);
+    video.onerror = () => reject(new Error(`영상 클립을 불러오지 못했습니다: ${url}`));
+    video.src = url;
   });
+}
+
+// 내레이션 클립의 실제 길이만 알아야 할 때(장면별 노출 시간 계산용) 쓰는 가벼운 헬퍼.
+export async function getAudioDuration(url) {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContextCtor();
+  try {
+    const res = await fetch(url);
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = await audioCtx.decodeAudioData(arrayBuffer);
+    return buffer.duration;
+  } finally {
+    audioCtx.close();
+  }
 }
 
 async function loadAudioBuffer(audioCtx, url) {
@@ -38,11 +54,11 @@ function wrapCanvasText(ctx, text, maxWidth) {
   return lines;
 }
 
-function drawCover(ctx, img, w, h) {
-  const scale = Math.max(w / img.width, h / img.height);
-  const dw = img.width * scale;
-  const dh = img.height * scale;
-  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+function drawCover(ctx, media, mediaW, mediaH, w, h) {
+  const scale = Math.max(w / mediaW, h / mediaH);
+  const dw = mediaW * scale;
+  const dh = mediaH * scale;
+  ctx.drawImage(media, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
 function pickMimeType(withAudio) {
@@ -52,7 +68,7 @@ function pickMimeType(withAudio) {
   return candidates.find((t) => MediaRecorder.isTypeSupported(t)) || "video/webm";
 }
 
-// beats: [{ text, imageUrl }]  — 화면에 나올 순서대로.
+// beats: [{ text, videoUrl }]  — videoUrl은 Seedance가 생성한 무음 배경 영상 클립.
 // logoUrl이 있으면 우상단에 실제 로고를, 없으면 브랜드명 텍스트를 표시한다.
 // narrationClipUrls(선택) — beats와 같은 길이의 음성 파일 URL 배열. 있으면 각 장면의 노출 시간이
 //   해당 음성 길이에 맞춰 자동으로 늘어난다(없으면 secondsPerBeat 고정 길이 사용).
@@ -68,9 +84,17 @@ export async function generateShortsVideo({
   bgmVolume = 0.5,
   onProgress,
 }) {
-  onProgress?.("장면 이미지를 불러오는 중...");
-  const images = await Promise.all(beats.map((b) => loadImage(b.imageUrl)));
-  const logoImg = logoUrl ? await loadImage(logoUrl).catch(() => null) : null;
+  onProgress?.("장면 영상 클립을 불러오는 중...");
+  const videos = await Promise.all(beats.map((b) => loadVideo(b.videoUrl)));
+  const logoImg = logoUrl
+    ? await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("로고를 불러오지 못했습니다."));
+        img.src = logoUrl;
+      }).catch(() => null)
+    : null;
 
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
@@ -157,6 +181,8 @@ export async function generateShortsVideo({
 
   onProgress?.(`영상을 렌더링하는 중... (약 ${Math.round(totalDuration)}초 분량)`);
 
+  let currentBeatIndex = -1;
+
   return new Promise((resolve, reject) => {
     recorder.onerror = (e) => {
       audioCtx.close();
@@ -164,6 +190,7 @@ export async function generateShortsVideo({
     };
     recorder.onstop = () => {
       audioCtx.close();
+      videos.forEach((v) => v.pause());
       const blob = new Blob(chunks, { type: "video/webm" });
       resolve(URL.createObjectURL(blob));
     };
@@ -179,8 +206,17 @@ export async function generateShortsVideo({
       let beatIndex = beatFrameBounds.findIndex((bound) => frame < bound);
       if (beatIndex === -1) beatIndex = beats.length - 1;
       const beat = beats[beatIndex];
+      const videoEl = videos[beatIndex];
 
-      drawCover(ctx, images[beatIndex], W, H);
+      // 새 장면으로 넘어가면 이전 클립은 멈추고 새 클립을 처음부터 재생한다.
+      if (beatIndex !== currentBeatIndex) {
+        if (currentBeatIndex >= 0) videos[currentBeatIndex].pause();
+        videoEl.currentTime = 0;
+        videoEl.play().catch(() => {});
+        currentBeatIndex = beatIndex;
+      }
+
+      drawCover(ctx, videoEl, videoEl.videoWidth || W, videoEl.videoHeight || H, W, H);
 
       // 하단부 자막 가독성용 그라디언트 스크림 (카드뉴스와 동일한 톤)
       const grad = ctx.createLinearGradient(0, H * 0.4, 0, H);

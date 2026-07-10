@@ -44,8 +44,8 @@ export const api = {
     request("/images/blog", { method: "POST", body: JSON.stringify({ prompt }) }),
   generateCardnewsImages: (cards, stylePrompt) =>
     request("/images/cardnews", { method: "POST", body: JSON.stringify({ cards, stylePrompt }) }),
-  generateShortsImages: (prompts) =>
-    request("/images/shorts", { method: "POST", body: JSON.stringify({ prompts }) }),
+  generateShortsVideoClips: (beats) =>
+    request("/videos/shorts", { method: "POST", body: JSON.stringify({ beats }) }),
   generateNarration: (texts) =>
     request("/audio/narration", { method: "POST", body: JSON.stringify({ texts }) }),
   reviewGeneration: (id, review) =>

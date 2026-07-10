@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import JSZip from "jszip";
 import { api } from "../api.js";
-import { generateShortsVideo } from "../shortsVideo.js";
+import { generateShortsVideo, getAudioDuration } from "../shortsVideo.js";
 import ReviewChecklist from "./ReviewChecklist.jsx";
 import HelpLink from "./HelpLink.jsx";
 import CopyButton from "./CopyButton.jsx";
@@ -99,9 +99,9 @@ export default function Generate({ onNavigate }) {
     }
   };
 
-  // 쇼츠 대본(훅·장면·CTA)을 장면별 배경 이미지 + 자막을 합성한 세로형(9:16) 영상으로 만든다.
+  // 쇼츠 대본(훅·장면·CTA)을 장면별 Seedance 배경 영상 + 자막을 합성한 세로형(9:16) 영상으로 만든다.
   const generateShortsVideoHandler = async () => {
-    setShortsVideo({ url: "", loading: true, error: "", progress: "장면별 배경 이미지를 생성하는 중... (최대 1~2분)" });
+    setShortsVideo({ url: "", loading: true, error: "", progress: "" });
     try {
       const shorts = current.result.shorts;
       const beatsInput = [
@@ -110,16 +110,27 @@ export default function Generate({ onNavigate }) {
         { text: shorts.cta, prompt: "밝고 신뢰감 있는 마무리 장면" },
       ];
 
-      const res = await api.generateShortsImages(beatsInput.map((b) => b.prompt));
-      const imageUrls = res.urls.map(api.mediaUrl);
-      const beats = beatsInput.map((b, i) => ({ text: b.text, imageUrl: imageUrls[i] }));
-
+      // 내레이션을 먼저 만들어야 각 장면의 실제 노출 시간(=음성 길이)을 알 수 있고,
+      // 그 길이에 맞춰 Seedance 영상 클립 길이를 요청할 수 있다.
       let narrationClipUrls;
+      let beatDurations = beatsInput.map(() => 4);
       if (narrationEnabled) {
         setShortsVideo((prev) => ({ ...prev, progress: "AI 음성 내레이션을 생성하는 중..." }));
-        const narrationRes = await api.generateNarration(beats.map((b) => b.text));
+        const narrationRes = await api.generateNarration(beatsInput.map((b) => b.text));
         narrationClipUrls = narrationRes.clips.map((c) => api.mediaUrl(c.url));
+        const durations = await Promise.all(narrationClipUrls.map((url) => getAudioDuration(url)));
+        beatDurations = durations.map((d) => Math.max(2.2, d + 0.6));
       }
+
+      setShortsVideo((prev) => ({
+        ...prev,
+        progress: "Seedance로 장면별 배경 영상을 생성하는 중... (장면당 최대 1~2분, 비용이 발생합니다)",
+      }));
+      const clipsRes = await api.generateShortsVideoClips(
+        beatsInput.map((b, i) => ({ prompt: b.prompt, durationSeconds: beatDurations[i] })),
+      );
+      const clipUrls = clipsRes.urls.map(api.mediaUrl);
+      const beats = beatsInput.map((b, i) => ({ text: b.text, videoUrl: clipUrls[i] }));
 
       const [logo, settings] = await Promise.all([
         api.getLogo().catch(() => ({ exists: false, url: null })),
@@ -408,13 +419,15 @@ export default function Generate({ onNavigate }) {
                     </div>
                   )}
                   <button className="ghost" style={{ marginTop: 10 }} onClick={generateShortsVideoHandler} disabled={shortsVideo.loading}>
-                    {shortsVideo.loading ? "영상 생성 중..." : "🎬 쇼츠 영상 생성 (OpenAI 또는 Gemini 키 필요)"}
+                    {shortsVideo.loading ? "영상 생성 중..." : "🎬 쇼츠 영상 생성 (Seedance 2.0 키 필요)"}
                   </button>
                   <p className="hint" style={{ marginTop: 6 }}>
-                    장면마다 AI 배경 이미지를 만들어 자막·로고와 함께 세로형(9:16) 영상으로 합성합니다.
-                    브라우저에서 직접 녹화하는 방식이라 결과물은 WebM 형식입니다 — 대부분의 플랫폼에서
-                    업로드되지만, MP4가 꼭 필요하면 무료 변환 도구로 한 번 더 변환해주세요. 저작권이 있는
-                    음원은 사용하지 마시고, 직접 소유했거나 로열티 프리 음원만 배경음악으로 사용하세요.
+                    장면마다 Seedance 2.0(fal.ai)으로 실제 AI 생성 영상 클립을 만든 뒤 자막·로고와 함께
+                    세로형(9:16) 영상 하나로 합성합니다. <strong>초당 과금되는 유료 API</strong>이니(720p 기준
+                    초당 약 $0.30) 장면 수·길이에 따라 비용이 커질 수 있는 점을 감안하세요. 브라우저에서 직접
+                    녹화하는 방식이라 결과물은 WebM 형식입니다 — 대부분의 플랫폼에서 업로드되지만, MP4가 꼭
+                    필요하면 무료 변환 도구로 한 번 더 변환해주세요. 저작권이 있는 음원은 사용하지 마시고,
+                    직접 소유했거나 로열티 프리 음원만 배경음악으로 사용하세요.
                   </p>
                   {shortsVideo.loading && shortsVideo.progress && (
                     <p className="hint" style={{ marginTop: 4 }}>{shortsVideo.progress}</p>

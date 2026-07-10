@@ -8,6 +8,7 @@ export const SECRET_KEYS = [
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
   "GEMINI_API_KEY",
+  "FAL_KEY",
   "NAVER_ID",
   "NAVER_SECRET",
   "META_PAGE_ID",

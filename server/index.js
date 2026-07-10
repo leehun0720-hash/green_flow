@@ -22,6 +22,7 @@ import { generateImage } from "./lib/imageProvider.js";
 import { composeCard } from "./lib/cardCompose.js";
 import { hasLogo, getLogoBuffer, saveLogo, deleteLogo, stampLogo } from "./lib/logo.js";
 import { generateSpeech } from "./lib/ttsProvider.js";
+import { generateVideoClip } from "./lib/seedance.js";
 
 // 스케줄러가 1분마다 도는 장기 구동 프로세스이므로, 요청 하나·타이머 콜백 하나에서 새는 예외가
 // 프로세스 전체를 죽이지 않도록 막는다(기본 동작은 Node가 종료해버리는 것 — 예약 발행이 통째로 멈춤).
@@ -213,24 +214,25 @@ app.post("/api/images/cardnews", async (req, res) => {
 
 // 쇼츠 영상용 장면별 배경 이미지 — 텍스트·로고 합성과 실제 영상 녹화(MediaRecorder)는
 // 브라우저에서 진행하므로, 여기서는 순수 배경 이미지들만 세로형(9:16)으로 생성해 돌려준다.
-app.post("/api/images/shorts", async (req, res) => {
+// 쇼츠 영상용 장면별 배경 클립 — Seedance 2.0(fal.ai)으로 실제 AI 생성 영상을 만든다.
+// beats: [{ prompt, durationSeconds }] — durationSeconds는 내레이션 길이 등에 맞춘 장면별 목표 노출 시간.
+// 자막·로고·내레이션·BGM 합성은 브라우저(shortsVideo.js)에서 처리하므로 여기서는 무음 배경 영상만 만든다.
+app.post("/api/videos/shorts", async (req, res) => {
   try {
-    const { prompts } = req.body;
-    if (!Array.isArray(prompts) || prompts.length === 0) {
-      return res.status(400).json({ error: "장면별 이미지 프롬프트가 필요합니다." });
+    const { beats } = req.body;
+    if (!Array.isArray(beats) || beats.length === 0) {
+      return res.status(400).json({ error: "장면 목록이 필요합니다." });
     }
     const settings = { ...DEFAULT_SETTINGS, ...readJson("settings", {}) };
     const urls = [];
-    let provider;
-    for (const p of prompts) {
-      const fullPrompt = `${p}. 브랜드 톤: ${settings.brandDef}. 세로형 숏폼 영상 배경 이미지, 영화 같은 고품질. 텍스트·글자·자막·워터마크·로고는 절대 포함하지 않는다. ${IMAGE_LOCALE_GUIDE}`;
-      const result = await generateImage({ prompt: fullPrompt, size: "1024x1536", settings });
-      provider = result.provider;
-      const filename = `shorts-${randomUUID()}.png`;
-      fs.writeFileSync(path.join(IMAGES_DIR, filename), result.buffer);
+    for (const b of beats) {
+      const fullPrompt = `${b.prompt}. 브랜드 톤: ${settings.brandDef}. 세로형 숏폼 영상의 한 장면, 영화 같은 고품질 촬영. ${IMAGE_LOCALE_GUIDE}`;
+      const buffer = await generateVideoClip({ prompt: fullPrompt, durationSeconds: b.durationSeconds });
+      const filename = `shorts-clip-${randomUUID()}.mp4`;
+      fs.writeFileSync(path.join(IMAGES_DIR, filename), buffer);
       urls.push(`/generated-images/${filename}`);
     }
-    res.json({ urls, provider });
+    res.json({ urls, provider: "seedance" });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -401,6 +403,7 @@ app.get("/api/health", (_req, res) => {
     hasAnthropicKey: !!secrets.ANTHROPIC_API_KEY,
     hasOpenAIKey: !!secrets.OPENAI_API_KEY,
     hasGeminiKey: !!secrets.GEMINI_API_KEY,
+    hasFalKey: !!secrets.FAL_KEY,
     hasNaverKeys: !!(secrets.NAVER_ID && secrets.NAVER_SECRET),
     ...metaConnectionStatus(),
   });

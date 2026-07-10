@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "@fal-ai/client": "^1.10.1",
     "@google/genai": "^2.10.0",
     "@napi-rs/canvas": "^1.0.2",
     "cors": "^2.8.5",
