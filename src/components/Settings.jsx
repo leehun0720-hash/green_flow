@@ -286,13 +286,6 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
           onClear={() => clearSecret("GEMINI_API_KEY")}
         />
         <ApiKeyField
-          label="fal.ai API 키 (Seedance 2.0 — 쇼츠 영상 배경 클립 생성)"
-          hint="fal.ai 가입 후 발급 — 초당 과금되는 유료 API입니다(720p 기준 초당 약 $0.30)"
-          status={secrets?.FAL_KEY}
-          onSave={(v) => saveSecret("FAL_KEY", v)}
-          onClear={() => clearSecret("FAL_KEY")}
-        />
-        <ApiKeyField
           label="네이버 Client ID (클리핑 모니터링)"
           hint="developers.naver.com → Application 등록 → 검색 API 사용"
           status={secrets?.NAVER_ID}
@@ -332,7 +325,6 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
           Claude: {health?.hasAnthropicKey ? <span className="badge green">연결됨</span> : <span className="badge red">미설정</span>}{" "}
           ChatGPT: {health?.hasOpenAIKey ? <span className="badge green">연결됨</span> : <span className="badge red">미설정</span>}{" "}
           Gemini: {health?.hasGeminiKey ? <span className="badge green">연결됨</span> : <span className="badge red">미설정</span>}{" "}
-          fal.ai(Seedance): {health?.hasFalKey ? <span className="badge green">연결됨</span> : <span className="badge red">미설정</span>}{" "}
           네이버: {health?.hasNaverKeys ? <span className="badge green">연결됨</span> : <span className="badge red">미설정</span>}{" "}
           페이스북: {health?.hasFacebook ? <span className="badge green">연결됨</span> : <span className="badge red">미설정</span>}{" "}
           인스타그램: {health?.hasInstagram ? <span className="badge green">연결됨</span> : <span className="badge red">미설정</span>}

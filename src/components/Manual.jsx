@@ -118,20 +118,7 @@ export default function Manual({ anchor }) {
           연결된 다른 하나를 자동으로 사용합니다.
         </p>
 
-        <h4>2-2. fal.ai API (Seedance 2.0 — 쇼츠 영상 생성, 선택, 유료)</h4>
-        <p>
-          쇼츠 스크립트를 실제 영상으로 만드는 <strong>"🎬 쇼츠 영상 생성"</strong> 기능에만 필요합니다.
-          다른 기능(텍스트 생성, 블로그·카드뉴스 이미지)에는 필요 없습니다.
-        </p>
-        <ol>
-          <li><a href="https://fal.ai" target="_blank" rel="noreferrer">fal.ai</a>에 가입/로그인합니다.</li>
-          <li>대시보드에서 <code className="kbd">API Keys</code> 메뉴로 이동해 새 키를 발급받습니다.</li>
-          <li>결제 수단을 등록합니다 — <strong>초당 과금되는 종량제</strong>입니다(720p 기준 초당 약 $0.30).
-            장면이 많거나 길수록 비용이 커지니 예산을 미리 가늠해두세요.</li>
-          <li>이 앱의 <strong>설정 → API 키 관리 → fal.ai API 키</strong>에 붙여넣고 저장합니다.</li>
-        </ol>
-
-        <h4>2-3. 네이버 검색 API (클리핑 모니터링 — 선택, 무료)</h4>
+        <h4>2-2. 네이버 검색 API (클리핑 모니터링 — 선택, 무료)</h4>
         <ol>
           <li><a href="https://developers.naver.com" target="_blank" rel="noreferrer">developers.naver.com</a>에서
             네이버 계정으로 로그인합니다.</li>
@@ -145,7 +132,7 @@ export default function Manual({ anchor }) {
         </ol>
         <p className="hint">일 25,000회까지 무료입니다. 클리핑 자동 실행 정도로는 충분합니다.</p>
 
-        <h4>2-4. Meta (페이스북·인스타그램 자동 발행 — 선택)</h4>
+        <h4>2-3. Meta (페이스북·인스타그램 자동 발행 — 선택)</h4>
         <p>가장 단계가 많은 설정입니다. 순서대로 차근차근 진행하세요.</p>
         <ol>
           <li><a href="https://developers.facebook.com" target="_blank" rel="noreferrer">developers.facebook.com</a>에서
@@ -190,7 +177,7 @@ export default function Manual({ anchor }) {
           토큰을 재발급해 설정 화면에 다시 입력하세요 (트러블슈팅 섹션 참고).
         </div>
 
-        <h4>2-5. 브랜드 상주 지침 설정</h4>
+        <h4>2-4. 브랜드 상주 지침 설정</h4>
         <p>
           <strong>설정</strong> 화면 아래쪽의 브랜드 정의·용어집·톤 가이드·키워드 풀을 우리 회사에 맞게 한 번
           다듬어 두세요. 이후 모든 생성 요청에 자동으로 적용됩니다.
@@ -245,20 +232,16 @@ export default function Manual({ anchor }) {
             갤러리로 표시되며, 각 카드를 개별적으로 다운로드해 인스타그램에 업로드하거나 캘린더 자동 발행의
             이미지 URL로 사용할 수 있습니다.</li>
           <li><strong>쇼츠 영상 생성</strong> — 쇼츠 스크립트 카드의 <strong>"🎬 쇼츠 영상 생성"</strong>을
-            누르면, 훅·각 장면·CTA마다 <strong>Seedance 2.0</strong>(ByteDance의 영상 생성 AI, fal.ai를 통해
-            호출)으로 실제 AI 생성 영상 클립을 만든 뒤 자막과 브랜드 로고(업로드해뒀다면)를 입혀 세로형(9:16)
-            영상 하나로 자동 합성합니다. 정지 이미지가 아니라 움직이는 영상이 배경으로 깔립니다. 장면당 기본
-            4초씩(내레이션을 켜면 음성 길이에 맞춰 자동 조정) 이어붙이므로 장면 수에 따라 총 길이가
-            달라집니다. <strong className="hint">⚠️ Seedance 2.0은 초당 과금되는 유료 API입니다(720p 기준
-            초당 약 $0.30) — 장면이 많거나 길수록 비용이 커지니 주의하세요.</strong> 최종 녹화는 서버가 아니라
-            브라우저에서 직접 처리되어 결과물이 <strong>WebM</strong> 형식으로 나옵니다 — 인스타그램·유튜브
-            대부분 업로드는 되지만, 특정 플랫폼에서 MP4를 요구하면 무료 온라인 변환기로 한 번 변환해서
-            쓰세요.</li>
+            누르면, 훅·각 장면·CTA마다 AI 배경 이미지를 만든 뒤 자막과 브랜드 로고(업로드해뒀다면)를
+            입혀 세로형(9:16) 영상 하나로 자동 합성합니다. 장면당 4초씩 이어붙이므로 장면 수에 따라 총
+            길이가 달라집니다. 영상 녹화는 서버가 아니라 브라우저에서 직접 처리되어 결과물이
+            <strong>WebM</strong> 형식으로 나옵니다 — 인스타그램·유튜브 대부분 업로드는 되지만, 특정
+            플랫폼에서 MP4를 요구하면 무료 온라인 변환기로 한 번 변환해서 쓰세요.</li>
           <li><strong>AI 음성 내레이션</strong> — "AI 음성 내레이션 추가" 체크박스를 켜면 각 장면 자막을
             OpenAI 또는 Gemini의 음성 합성으로 실제 사람 목소리처럼 읽어줍니다. 이 경우 장면 노출 시간이
-            고정 4초가 아니라 <strong>해당 장면 내레이션의 실제 길이</strong>에 맞춰 자동으로 늘어나고, 그
-            길이에 맞춰 Seedance 영상 클립 길이도 함께 조정됩니다. 내레이션 생성에는 OpenAI 또는 Gemini
-            키가 필요합니다(Seedance 키와는 별개).</li>
+            고정 4초가 아니라 <strong>해당 장면 내레이션의 실제 길이</strong>에 맞춰 자동으로 늘어나므로,
+            음성과 자막이 어긋나지 않습니다. 내레이션 생성에도 이미지 생성과 같은 OpenAI/Gemini 키가
+            필요합니다.</li>
           <li><strong>배경음악(BGM)</strong> — 가지고 계신 mp3/wav 파일을 "배경음악" 칸에서 선택하면 영상
             길이에 맞춰 자동으로 반복 재생되며 함께 녹화됩니다(볼륨 조절 가능). 내레이션을 함께 켜면 음성이
             묻히지 않도록 배경음악 볼륨이 자동으로 더 낮아집니다. 반드시 직접 소유했거나 로열티 프리인
@@ -456,11 +439,6 @@ export default function Manual({ anchor }) {
               <td>설정 → AI 공급자에서 고른 공급자의 API 키 미입력/오타/만료</td>
               <td>설정 → API 키 관리에서 <strong>현재 선택된 공급자</strong>의 키를 다시 발급해 입력
                 (다른 공급자로 잠시 바꿔 써도 됩니다)</td>
-            </tr>
-            <tr>
-              <td>쇼츠 영상 생성 시 "FAL_KEY가 설정되지 않았습니다"</td>
-              <td>fal.ai 키 미입력</td>
-              <td>설정 → API 키 관리에서 fal.ai API 키 입력(2-2장 참고, 유료 API이니 결제 수단도 등록돼 있는지 확인)</td>
             </tr>
             <tr>
               <td>클리핑 실행 시 "NAVER_ID / NAVER_SECRET이 설정되지 않았습니다"</td>
