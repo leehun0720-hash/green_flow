@@ -41,7 +41,7 @@ function buildLinkedinPlainText(linkedin) {
 }
 
 function buildShortsPlainText(shorts) {
-  const scenes = shorts.scenes.map((s, i) => `${i + 1}. [자막] ${s.caption}\n   [화면 지시] ${s.direction}`).join("\n\n");
+  const scenes = shorts.scenes.map((s, i) => `${i + 1}. [자막] ${s.caption}\n   [이미지 프롬프트] ${s.imagePrompt}`).join("\n\n");
   return `훅: ${shorts.hook}\n\n${scenes}\n\nCTA: ${shorts.cta}`;
 }
 
@@ -105,10 +105,13 @@ export default function Generate({ onNavigate }) {
     try {
       const shorts = current.result.shorts;
       const beatsInput = [
-        { text: shorts.hook, prompt: shorts.scenes[0]?.direction || `${current.purpose || "핵심 메시지"} 도입부 장면` },
-        ...shorts.scenes.map((s) => ({ text: s.caption, prompt: s.direction })),
-        { text: shorts.cta, prompt: "밝고 신뢰감 있는 마무리 장면" },
+        { text: shorts.hook, prompt: shorts.scenes[0]?.imagePrompt || "Opening shot introducing the core message, cinematic still" },
+        ...shorts.scenes.map((s) => ({ text: s.caption, prompt: s.imagePrompt })),
+        { text: shorts.cta, prompt: "Bright, trustworthy closing shot, cinematic still" },
       ];
+      // 전체 영상은 15초를 넘지 않아야 하므로, 내레이션이 없을 때는 장면 수에 맞춰 컷당 길이를 동적으로 줄인다.
+      const maxTotalSeconds = 15;
+      const secondsPerBeat = Math.min(4, maxTotalSeconds / beatsInput.length);
 
       const res = await api.generateShortsImages(beatsInput.map((b) => b.prompt));
       const imageUrls = res.urls.map(api.mediaUrl);
@@ -130,6 +133,7 @@ export default function Generate({ onNavigate }) {
         beats,
         logoUrl: logo.exists ? api.mediaUrl(logo.url) : null,
         brandName: settings.brandName || "",
+        secondsPerBeat,
         narrationClipUrls,
         bgmFile: bgmFile || undefined,
         bgmVolume: bgmVolume / 100,
@@ -355,13 +359,13 @@ export default function Generate({ onNavigate }) {
                 <p className="hint">훅: {current.result.shorts.hook}</p>
                 <table>
                   <thead>
-                    <tr><th>자막</th><th>화면 지시</th></tr>
+                    <tr><th>자막</th><th>이미지 프롬프트 (영문)</th></tr>
                   </thead>
                   <tbody>
                     {current.result.shorts.scenes.map((s, i) => (
                       <tr key={i}>
                         <td>{s.caption}</td>
-                        <td>{s.direction}</td>
+                        <td>{s.imagePrompt}</td>
                       </tr>
                     ))}
                   </tbody>
