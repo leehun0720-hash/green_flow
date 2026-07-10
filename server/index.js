@@ -37,6 +37,12 @@ const BRAND_DIR = path.join(DATA_DIR, "branding");
 if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 if (!fs.existsSync(BRAND_DIR)) fs.mkdirSync(BRAND_DIR, { recursive: true });
 
+// AI 배경 이미지에 원치 않는 외국어 표기나 비한국인 인물이 나오는 것을 막기 위한 공통 지침.
+// 블로그 대표 이미지·카드뉴스 배경·쇼츠 배경 생성 프롬프트에 모두 덧붙인다.
+const IMAGE_LOCALE_GUIDE =
+  "이미지 안에 글자·간판·표지판 등 텍스트가 우연히 등장하더라도 한국어 또는 영어로만 표현한다(다른 언어 문자 금지). " +
+  "사람이 등장하면 반드시 한국인으로 보이는 동아시아 외모로 표현한다.";
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "8mb" }));
@@ -151,7 +157,7 @@ app.post("/api/images/blog", async (req, res) => {
       return res.status(400).json({ error: "이미지로 표현할 주제를 입력하세요." });
     }
     const settings = { ...DEFAULT_SETTINGS, ...readJson("settings", {}) };
-    const fullPrompt = `${prompt.trim()}. 브랜드 톤: ${settings.brandDef}. 사진 같은 고품질 블로그 대표 이미지. 텍스트·글자·워터마크·로고는 절대 포함하지 않는다.`;
+    const fullPrompt = `${prompt.trim()}. 브랜드 톤: ${settings.brandDef}. 사진 같은 고품질 블로그 대표 이미지. 텍스트·글자·워터마크·로고는 절대 포함하지 않는다. ${IMAGE_LOCALE_GUIDE}`;
 
     const { buffer, provider } = await generateImage({ prompt: fullPrompt, size: "1536x1024", settings });
     const finalBuffer = hasLogo() ? await stampLogo(buffer, getLogoBuffer(), { corner: "bottom-right" }) : buffer;
@@ -172,7 +178,7 @@ app.post("/api/images/cardnews", async (req, res) => {
     const settings = { ...DEFAULT_SETTINGS, ...readJson("settings", {}) };
     const bgPrompt = `${
       stylePrompt?.trim() || `${settings.brandDef}(${settings.brandModifier}) 브랜드 느낌의 추상적이고 미니멀한 그라디언트 배경 디자인`
-    }. 세로형 소셜미디어 카드뉴스용 배경 이미지. 텍스트·글자·숫자·워터마크·로고는 절대 포함하지 않는다 — 순수 배경 그래픽만.`;
+    }. 세로형 소셜미디어 카드뉴스용 배경 이미지. 텍스트·글자·숫자·워터마크·로고는 절대 포함하지 않는다 — 순수 배경 그래픽만. ${IMAGE_LOCALE_GUIDE}`;
 
     const { buffer: backgroundBuffer, provider } = await generateImage({ prompt: bgPrompt, size: "1024x1024", settings });
     const logoBuffer = getLogoBuffer();
@@ -210,7 +216,7 @@ app.post("/api/images/shorts", async (req, res) => {
     const urls = [];
     let provider;
     for (const p of prompts) {
-      const fullPrompt = `${p}. 브랜드 톤: ${settings.brandDef}. 세로형 숏폼 영상 배경 이미지, 영화 같은 고품질. 텍스트·글자·자막·워터마크·로고는 절대 포함하지 않는다.`;
+      const fullPrompt = `${p}. 브랜드 톤: ${settings.brandDef}. 세로형 숏폼 영상 배경 이미지, 영화 같은 고품질. 텍스트·글자·자막·워터마크·로고는 절대 포함하지 않는다. ${IMAGE_LOCALE_GUIDE}`;
       const result = await generateImage({ prompt: fullPrompt, size: "1024x1536", settings });
       provider = result.provider;
       const filename = `shorts-${randomUUID()}.png`;
