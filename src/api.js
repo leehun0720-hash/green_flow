@@ -32,6 +32,9 @@ export const api = {
   uploadLogo: (dataUrl) => request("/settings/logo", { method: "POST", body: JSON.stringify({ dataUrl }) }),
   deleteLogo: () => request("/settings/logo", { method: "DELETE" }),
 
+  downloadBackup: () => fetch(`${BASE}/backup`), // 파일 다운로드용 — raw Response 반환
+  restoreBackup: (backup) => request("/restore", { method: "POST", body: JSON.stringify(backup) }),
+
   getSecretsStatus: () => request("/secrets"),
   saveSecrets: (values) => request("/secrets", { method: "PUT", body: JSON.stringify(values) }),
   clearSecret: (key) => request(`/secrets/${key}`, { method: "DELETE" }),

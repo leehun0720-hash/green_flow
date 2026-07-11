@@ -107,6 +107,40 @@ app.delete("/api/secrets/:key", (req, res) => {
   res.json(secretsStatus());
 });
 
+// ---------- 백업 / 복원 — 설정·API 키·기록 전체를 JSON 파일 하나로 내보내고 되돌린다 ----------
+const BACKUP_STORES = ["settings", "secrets", "generations", "calendar", "clipping_log", "reports"];
+
+app.get("/api/backup", (_req, res) => {
+  const backup = {
+    app: "greenflow-content-automation",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    stores: Object.fromEntries(BACKUP_STORES.map((name) => [name, readJson(name, null)])),
+    logo: hasLogo() ? getLogoBuffer().toString("base64") : null,
+  };
+  const filename = `greenflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.json(backup);
+});
+
+app.post("/api/restore", async (req, res) => {
+  try {
+    const backup = req.body;
+    if (backup?.app !== "greenflow-content-automation" || !backup.stores) {
+      return res.status(400).json({ error: "올바른 greenflow 백업 파일이 아닙니다." });
+    }
+    for (const name of BACKUP_STORES) {
+      if (backup.stores[name] != null) writeJson(name, backup.stores[name]);
+    }
+    if (backup.logo) {
+      await saveLogo(`data:image/png;base64,${backup.logo}`);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---------- 03·04 생성 자동화 파이프라인 ----------
 app.post("/api/generate", async (req, res) => {
   try {

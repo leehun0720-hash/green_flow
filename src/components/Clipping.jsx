@@ -8,6 +8,9 @@ export default function Clipping({ onNavigate }) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [lastResult, setLastResult] = useState(null);
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [autoTime, setAutoTime] = useState("09:00");
+  const [autoSaved, setAutoSaved] = useState(false);
 
   const load = async () => {
     setLog(await api.listClipping());
@@ -15,12 +18,24 @@ export default function Clipping({ onNavigate }) {
 
   useEffect(() => {
     load();
-    // 설정 화면에서 저장한 클리핑 키워드를 기본값으로 사용 (하드코딩 금지)
+    // 설정 화면에서 저장한 클리핑 키워드·자동 수집 설정을 불러온다 (하드코딩 금지)
     api
       .getSettings()
-      .then((s) => setKeywords((s.clippingKeywords || []).join(", ")))
+      .then((s) => {
+        setKeywords((s.clippingKeywords || []).join(", "));
+        setAutoEnabled(!!s.clippingAutoEnabled);
+        setAutoTime(s.clippingAutoTime || "09:00");
+      })
       .catch(() => {});
   }, []);
+
+  const saveAuto = async (enabled, time) => {
+    setAutoEnabled(enabled);
+    setAutoTime(time);
+    await api.saveSettings({ clippingAutoEnabled: enabled, clippingAutoTime: time });
+    setAutoSaved(true);
+    setTimeout(() => setAutoSaved(false), 2000);
+  };
 
   const run = async () => {
     setError("");
@@ -72,6 +87,34 @@ export default function Clipping({ onNavigate }) {
           네이버 Client ID/Secret이 필요합니다 — <strong>설정 → API 키 관리</strong>에서 입력하세요
           (developers.naver.com → 애플리케이션 등록 → 검색 API). 기본 키워드는 설정 화면의
           "클리핑 키워드"에서 바꿀 수 있습니다.
+        </p>
+      </div>
+
+      <div className="card">
+        <h3>매일 자동 수집</h3>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={autoEnabled}
+            onChange={(e) => saveAuto(e.target.checked, autoTime)}
+          />
+          매일 지정 시각에 자동으로 수집 실행
+        </label>
+        {autoEnabled && (
+          <div className="field" style={{ marginTop: 10, maxWidth: 200 }}>
+            <label>수집 시각</label>
+            <input
+              type="time"
+              value={autoTime}
+              onChange={(e) => saveAuto(autoEnabled, e.target.value)}
+            />
+          </div>
+        )}
+        {autoSaved && <p className="hint" style={{ marginTop: 6 }}>✔ 저장됨 — 즉시 적용됩니다.</p>}
+        <p className="hint" style={{ marginTop: 8 }}>
+          앱(서버)이 켜져 있는 동안 동작합니다 — 트레이에 상주 중이면 창을 닫아도 수집됩니다. 지정
+          시각에 앱이 꺼져 있었다면, 그날 중 다시 켜졌을 때 한 번 따라잡아 수집합니다. 외부 작업
+          스케줄러(cron 등)는 더 이상 필요 없습니다.
         </p>
       </div>
 

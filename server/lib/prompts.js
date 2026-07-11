@@ -46,6 +46,9 @@ export const DEFAULT_SETTINGS = {
   hashtagVariable: ["탄소회계", "CBAM", "기후공시", "ESG경영"],
   // 클리핑 모니터링에서 언급을 수집할 키워드 — 클리핑 화면·자동 수집 스케줄러가 공유
   clippingKeywords: ["그린플로", "오후두시랩", "탄소회계 AI"],
+  // 클리핑 자동 수집 — 앱(서버)이 켜져 있는 동안 매일 지정 시각에 1회 자동 수집
+  clippingAutoEnabled: false,
+  clippingAutoTime: "09:00",
   contentPillars: [
     { id: "regulation", label: "규제 해설형" },
     { id: "case", label: "고객 사례형" },

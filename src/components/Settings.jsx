@@ -46,6 +46,7 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
   const [logo, setLogo] = useState(null);
   const [logoError, setLogoError] = useState("");
   const [logoUploading, setLogoUploading] = useState(false);
+  const [backupMsg, setBackupMsg] = useState("");
 
   const loadHealth = () => api.health().then(setHealth).catch(() => {});
   const loadSecrets = () => api.getSecretsStatus().then(setSecrets).catch(() => {});
@@ -94,6 +95,43 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
   const onLogoDelete = async () => {
     await api.deleteLogo();
     setLogo({ exists: false, url: null });
+  };
+
+  const downloadBackup = async () => {
+    setBackupMsg("");
+    try {
+      const res = await api.downloadBackup();
+      if (!res.ok) throw new Error(`백업 생성 실패 (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `greenflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setBackupMsg("백업 파일을 다운로드했습니다. 안전한 곳에 보관하세요 (API 키가 포함되어 있습니다).");
+    } catch (e) {
+      setBackupMsg(`백업 실패: ${e.message}`);
+    }
+  };
+
+  const onRestoreFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!confirm("복원하면 현재 설정·API 키·생성 기록·캘린더가 백업 파일 내용으로 덮어쓰기됩니다.\n계속할까요?")) return;
+    setBackupMsg("");
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+      await api.restoreBackup(backup);
+      setBackupMsg("복원이 완료됐습니다. 화면을 새로고침합니다...");
+      setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
+      setBackupMsg(`복원 실패: ${err.message}`);
+    }
   };
 
   // 테마 실시간 미리보기 — 저장 전에도 바로 눈으로 확인, 저장 안 하고 화면을 벗어나면 원래 테마로 복귀
@@ -389,6 +427,27 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
             onChange={(e) => set("clippingKeywords", fromCsv(e.target.value))}
           />
         </div>
+      </div>
+
+      <div className="card">
+        <h3>백업 · 복원</h3>
+        <p className="hint">
+          설정·API 키·생성 기록·캘린더·클리핑 로그·리포트·로고를 JSON 파일 하나로 내보내고, PC 교체나
+          재설치 후 그대로 되돌릴 수 있습니다. <strong>백업 파일에는 API 키가 포함되니</strong> 안전한 곳에
+          보관하세요.
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+          <button className="ghost" onClick={downloadBackup}>⬇ 백업 파일 다운로드</button>
+          <label className="ghost" style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", cursor: "pointer", fontSize: 12.5 }}>
+            ⬆ 백업에서 복원
+            <input type="file" accept="application/json,.json" onChange={onRestoreFile} style={{ display: "none" }} />
+          </label>
+        </div>
+        {backupMsg && (
+          <p className="hint" style={{ marginTop: 8, color: backupMsg.includes("실패") ? "var(--red)" : undefined }}>
+            {backupMsg}
+          </p>
+        )}
       </div>
 
       <div className="save-bar">
