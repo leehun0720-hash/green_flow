@@ -381,6 +381,14 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
             <input type="text" value={toCsv(settings.hashtagVariable)} onChange={(e) => set("hashtagVariable", fromCsv(e.target.value))} />
           </div>
         </div>
+        <div className="field">
+          <label>클리핑 키워드 (쉼표 구분 — 클리핑 모니터링·자동 수집이 이 키워드로 언급을 검색)</label>
+          <input
+            type="text"
+            value={toCsv(settings.clippingKeywords)}
+            onChange={(e) => set("clippingKeywords", fromCsv(e.target.value))}
+          />
+        </div>
       </div>
 
       {saved && <div className="info-box">설정을 저장했습니다.</div>}

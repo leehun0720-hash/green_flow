@@ -58,7 +58,8 @@ app.use("/branding", express.static(BRAND_DIR));
 
 // ---------- 설정 (상주 지침: 브랜드/용어집/톤/키워드 풀) ----------
 app.get("/api/settings", (_req, res) => {
-  res.json(readJson("settings", DEFAULT_SETTINGS));
+  // 저장 파일에 없는 신규 필드(앱 업데이트로 추가된 설정)는 기본값으로 채워서 내려보낸다
+  res.json({ ...DEFAULT_SETTINGS, ...readJson("settings", {}) });
 });
 
 app.put("/api/settings", (req, res) => {

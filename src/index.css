@@ -16,6 +16,17 @@
   --sidebar-fg: #eafff3;
   --sidebar-fg-dim: #9fd8bd;
   --sidebar-fg-nav: #d9f2e4;
+  /* 서피스·배지·경고 색 — 다크 테마에서 함께 뒤집히도록 변수로 관리 */
+  --surface-subtle: #fbfdfb;
+  --note-bg: #fff8e6;
+  --note-border: #f0dca0;
+  --badge-green-bg: #e2f6ea;
+  --badge-green-fg: #1a6b4f;
+  --badge-yellow-bg: #fdf2d8;
+  --badge-red-bg: #fdecea;
+  --badge-gray-bg: #eef1ef;
+  --red-bg: #fdecea;
+  --red-border: #f5c6c1;
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic",
     sans-serif;
 }
@@ -96,6 +107,19 @@
   --sidebar-fg: #eaf6fb;
   --sidebar-fg-dim: #7fb8cf;
   --sidebar-fg-nav: #cfe9f2;
+  /* 다크 배경 위에서 읽히도록 서피스·배지·경고 색 반전 */
+  --red: #e57969;
+  --yellow: #d9a93c;
+  --surface-subtle: #20292e;
+  --note-bg: #332e1d;
+  --note-border: #5c5330;
+  --badge-green-bg: #17382a;
+  --badge-green-fg: #63cf9f;
+  --badge-yellow-bg: #3a321a;
+  --badge-red-bg: #3d2320;
+  --badge-gray-bg: #263036;
+  --red-bg: #3d2320;
+  --red-border: #6b4038;
 }
 
 * {
@@ -122,6 +146,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* 긴 화면(콘텐츠 생성 등)에서 스크롤해도 메뉴가 항상 보이도록 고정.
+     height: 100vh는 내용이 짧은 화면에서 배경이 중간에 끊기는 문제도 함께 해결한다
+     (flex min-height는 자식 stretch에 반영되지 않는 CSS 특성 때문). */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar h1 {
@@ -253,9 +284,9 @@ button.ghost {
 }
 
 button.danger {
-  background: #fdecea;
+  background: var(--red-bg);
   color: var(--red);
-  border: 1px solid #f5c6c1;
+  border: 1px solid var(--red-border);
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 11.5px;
@@ -270,19 +301,20 @@ button.danger {
   font-weight: 700;
 }
 .badge.green {
-  background: #e2f6ea;
-  color: #1a6b4f;
+  /* 상태 의미(성공=초록)가 테마 액센트를 따라가면 안 되므로 accent 변수가 아닌 전용 변수 사용 */
+  background: var(--badge-green-bg);
+  color: var(--badge-green-fg);
 }
 .badge.yellow {
-  background: #fdf2d8;
+  background: var(--badge-yellow-bg);
   color: var(--yellow);
 }
 .badge.red {
-  background: #fdecea;
+  background: var(--badge-red-bg);
   color: var(--red);
 }
 .badge.gray {
-  background: #eef1ef;
+  background: var(--badge-gray-bg);
   color: var(--text-dim);
 }
 
@@ -332,8 +364,8 @@ th {
 }
 
 .error-box {
-  background: #fdecea;
-  border: 1px solid #f5c6c1;
+  background: var(--red-bg);
+  border: 1px solid var(--red-border);
   color: var(--red);
   padding: 10px 14px;
   border-radius: 8px;
@@ -395,7 +427,7 @@ th {
   white-space: pre-wrap;
   font-size: 13px;
   line-height: 1.7;
-  background: #fbfdfb;
+  background: var(--surface-subtle);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 16px;
@@ -451,8 +483,8 @@ code.kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 .manual-note {
-  background: #fff8e6;
-  border: 1px solid #f0dca0;
+  background: var(--note-bg);
+  border: 1px solid var(--note-border);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 12.5px;
@@ -490,6 +522,10 @@ code.kbd {
     flex-direction: row;
     flex-wrap: wrap;
     padding: 14px;
+    /* 모바일에서는 상단 스택 구조라 데스크톱용 sticky 전체높이 규칙을 해제 */
+    position: static;
+    height: auto;
+    overflow-y: visible;
   }
   .sidebar h1,
   .sidebar .subtitle {

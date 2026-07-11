@@ -22,12 +22,29 @@ export default function Dashboard({ onNavigate }) {
   const [calendar, setCalendar] = useState([]);
   const [generations, setGenerations] = useState([]);
   const [clipping, setClipping] = useState([]);
+  const [clippingRunning, setClippingRunning] = useState(false);
+  const [clippingResult, setClippingResult] = useState("");
 
   useEffect(() => {
     api.listCalendar().then(setCalendar);
     api.listGenerations().then(setGenerations);
     api.listClipping().then(setClipping);
   }, []);
+
+  // 빠른 실행의 "클리핑 실행"은 이름 그대로 실제 수집을 돌린다(설정의 클리핑 키워드 사용).
+  const runClippingNow = async () => {
+    setClippingRunning(true);
+    setClippingResult("");
+    try {
+      const res = await api.runClipping([]);
+      setClippingResult(`클리핑 수집 완료 — ${res.collected}건을 새로 수집했습니다.`);
+      api.listClipping().then(setClipping);
+    } catch (e) {
+      setClippingResult(`클리핑 실행 실패: ${e.message}`);
+    } finally {
+      setClippingRunning(false);
+    }
+  };
 
   const weekStart = startOfWeek(new Date());
   const weekEnd = new Date(weekStart);
@@ -84,9 +101,16 @@ export default function Dashboard({ onNavigate }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="primary" onClick={() => onNavigate("generate")}>+ 콘텐츠 생성</button>
           <button className="ghost" onClick={() => onNavigate("calendar")}>캘린더 보기</button>
-          <button className="ghost" onClick={() => onNavigate("clipping")}>클리핑 실행</button>
+          <button className="ghost" onClick={runClippingNow} disabled={clippingRunning}>
+            {clippingRunning ? "수집 중..." : "클리핑 실행"}
+          </button>
           <button className="ghost" onClick={() => onNavigate("report")}>월간 리포트</button>
         </div>
+        {clippingResult && (
+          <p className="hint" style={{ marginTop: 8, color: clippingResult.includes("실패") ? "var(--red)" : undefined }}>
+            {clippingResult}
+          </p>
+        )}
       </div>
 
       <div className="card">

@@ -44,6 +44,8 @@ export const DEFAULT_SETTINGS = {
   ],
   hashtagFixed: ["그린플로", "지구테크"],
   hashtagVariable: ["탄소회계", "CBAM", "기후공시", "ESG경영"],
+  // 클리핑 모니터링에서 언급을 수집할 키워드 — 클리핑 화면·자동 수집 스케줄러가 공유
+  clippingKeywords: ["그린플로", "오후두시랩", "탄소회계 AI"],
   contentPillars: [
     { id: "regulation", label: "규제 해설형" },
     { id: "case", label: "고객 사례형" },

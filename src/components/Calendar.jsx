@@ -282,7 +282,7 @@ export default function Calendar({ onNavigate }) {
                     </tr>
                     {isAuto && expandedId === r.id && (
                       <tr>
-                        <td colSpan={9} style={{ background: "#fbfdfb" }}>
+                        <td colSpan={9} style={{ background: "var(--surface-subtle)" }}>
                           <div className="row" style={{ padding: "8px 4px" }}>
                             <div className="field">
                               <label>캡션</label>

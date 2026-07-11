@@ -4,7 +4,7 @@ import HelpLink from "./HelpLink.jsx";
 
 export default function Clipping({ onNavigate }) {
   const [log, setLog] = useState([]);
-  const [keywords, setKeywords] = useState("그린플로, 오후두시랩, 탄소회계 AI");
+  const [keywords, setKeywords] = useState("");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [lastResult, setLastResult] = useState(null);
@@ -15,6 +15,11 @@ export default function Clipping({ onNavigate }) {
 
   useEffect(() => {
     load();
+    // 설정 화면에서 저장한 클리핑 키워드를 기본값으로 사용 (하드코딩 금지)
+    api
+      .getSettings()
+      .then((s) => setKeywords((s.clippingKeywords || []).join(", ")))
+      .catch(() => {});
   }, []);
 
   const run = async () => {
@@ -64,7 +69,9 @@ export default function Clipping({ onNavigate }) {
           {running ? "수집 중..." : "지금 수집 실행"}
         </button>
         <p className="hint" style={{ marginTop: 8 }}>
-          .env 에 NAVER_ID / NAVER_SECRET 을 설정해야 합니다 (developers.naver.com → 애플리케이션 등록 → 검색 API).
+          네이버 Client ID/Secret이 필요합니다 — <strong>설정 → API 키 관리</strong>에서 입력하세요
+          (developers.naver.com → 애플리케이션 등록 → 검색 API). 기본 키워드는 설정 화면의
+          "클리핑 키워드"에서 바꿀 수 있습니다.
         </p>
       </div>
 
