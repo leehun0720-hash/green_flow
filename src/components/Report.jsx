@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../api.js";
 import HelpLink from "./HelpLink.jsx";
+import CopyButton from "./CopyButton.jsx";
 
 function currentMonth() {
   const d = new Date();
@@ -33,6 +34,13 @@ export default function Report({ onNavigate }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const removeReport = async (r) => {
+    if (!confirm(`${r.month} 리포트를 삭제할까요? 되돌릴 수 없습니다.`)) return;
+    await api.deleteReport(r.id);
+    if (current?.id === r.id) setCurrent(null);
+    load();
   };
 
   return (
@@ -70,8 +78,11 @@ export default function Report({ onNavigate }) {
 
       {current && (
         <div className="card">
-          <h3>{current.month} 리포트</h3>
-          <div className="report-output">{current.reportText}</div>
+          <div className="page-header-row">
+            <h3 style={{ margin: 0 }}>{current.month} 리포트</h3>
+            <CopyButton getText={() => current.reportText} label="리포트 복사" />
+          </div>
+          <div className="report-output" style={{ marginTop: 10 }}>{current.reportText}</div>
         </div>
       )}
 
@@ -85,7 +96,10 @@ export default function Report({ onNavigate }) {
                 <tr key={r.id}>
                   <td>{r.month}</td>
                   <td>{new Date(r.createdAt).toLocaleString("ko-KR")}</td>
-                  <td><button className="ghost" onClick={() => setCurrent(r)}>보기</button></td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <button className="ghost" onClick={() => setCurrent(r)}>보기</button>{" "}
+                    <button className="danger" onClick={() => removeReport(r)}>삭제</button>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -337,14 +337,34 @@ th {
   letter-spacing: 0.02em;
 }
 
-.channel-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
+/* 생성 결과 채널 탭 — 4채널 세로 나열 대신 탭 전환으로 화면 길이를 줄인다 */
+.channel-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 16px;
 }
-
-.channel-card {
+.channel-tab {
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+.channel-tab:hover {
+  color: var(--text);
+}
+.channel-tab.active {
+  color: var(--accent-ink);
+  font-weight: 700;
+  border-bottom-color: var(--accent-600);
+}
+.channel-pane {
   min-width: 0;
 }
 
@@ -403,6 +423,17 @@ th {
   border-radius: 10px;
   padding: 14px;
 }
+/* KPI 카드를 눌러 해당 화면으로 이동 — 버튼 기본 스타일 제거 + 호버 피드백 */
+button.kpi-card.clickable {
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+button.kpi-card.clickable:hover {
+  border-color: var(--accent-500);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
 .kpi-card .value {
   font-size: 22px;
   font-weight: 700;
@@ -416,6 +447,21 @@ th {
 .status-select {
   font-size: 12px;
   padding: 4px 6px;
+}
+/* 상태 select 자체에 상태색을 입혀 배지 중복 표시를 없앤다 */
+.status-select.status-green {
+  background: var(--badge-green-bg);
+  color: var(--badge-green-fg);
+  font-weight: 700;
+}
+.status-select.status-yellow {
+  background: var(--badge-yellow-bg);
+  color: var(--yellow);
+  font-weight: 700;
+}
+.status-select.status-gray {
+  background: var(--badge-gray-bg);
+  color: var(--text-dim);
 }
 
 .hint {
@@ -510,6 +556,20 @@ code.kbd {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+}
+
+/* 긴 설정 화면에서 저장 버튼이 항상 보이도록 하단 고정 */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
 }
 
 /* 좁은 화면(모바일/태블릿) — 사이드바 220px 고정폭 때문에 본문이 짜부라지는 문제 대응 */

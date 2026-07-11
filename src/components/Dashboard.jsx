@@ -2,13 +2,13 @@ import React, { useEffect, useState } from "react";
 import { api } from "../api.js";
 import HelpLink from "./HelpLink.jsx";
 
-const TIMETABLE = [
-  { day: "월", task: "카드뉴스 (인스타 11:00)", work: "주간 배치 검수(50분) → 전 채널 예약 등록" },
-  { day: "화", task: "블로그① 07:30 · LinkedIn 회사 08:30", work: "차주 소재 선정 + 마스터 프롬프트 실행(30분)" },
-  { day: "수", task: "쇼츠 12:00", work: "클리핑 결과 확인 · 캘린더 상태 정리(15분)" },
-  { day: "목", task: "블로그② 17:30 · LinkedIn 대표 08:30", work: "" },
-  { day: "금", task: "릴스 19:00", work: "모니터링 정리(15분)" },
-];
+const STATUS_BADGE = {
+  초안: "gray",
+  검수완료: "yellow",
+  예약됨: "yellow",
+  발행: "green",
+  집계반영: "green",
+};
 
 function startOfWeek(d) {
   const date = new Date(d);
@@ -17,6 +17,8 @@ function startOfWeek(d) {
   date.setHours(0, 0, 0, 0);
   return date;
 }
+
+const DAY_LABEL = ["일", "월", "화", "수", "목", "금", "토"];
 
 export default function Dashboard({ onNavigate }) {
   const [calendar, setCalendar] = useState([]);
@@ -50,15 +52,21 @@ export default function Dashboard({ onNavigate }) {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 7);
 
-  const thisWeek = calendar.filter((r) => {
-    if (!r.datetime) return false;
-    const d = new Date(r.datetime);
-    return d >= weekStart && d < weekEnd;
-  });
+  const thisWeek = calendar
+    .filter((r) => {
+      if (!r.datetime) return false;
+      const d = new Date(r.datetime);
+      return d >= weekStart && d < weekEnd;
+    })
+    .sort((a, b) => a.datetime.localeCompare(b.datetime));
   const published = thisWeek.filter((r) => r.status === "발행" || r.status === "집계반영").length;
   const pendingReview = generations.filter((g) => !g.review?.grade).length;
   const missingUrl = calendar.filter((r) => r.status === "발행" && !r.url).length;
   const recentErrors = clipping.filter((r) => r.title?.startsWith("ERROR")).length;
+  const recentGenerations = generations.slice(0, 5);
+
+  const generationTitle = (g) =>
+    g.result?.blog?.titles?.[0] || g.purpose || g.sourceExcerpt?.slice(0, 40) || "-";
 
   return (
     <div>
@@ -71,22 +79,22 @@ export default function Dashboard({ onNavigate }) {
       </p>
 
       <div className="kpi-grid">
-        <div className="kpi-card">
+        <button className="kpi-card clickable" onClick={() => onNavigate("calendar")}>
           <div className="value">{thisWeek.length}</div>
           <div className="label">이번 주 예정 발행</div>
-        </div>
-        <div className="kpi-card">
+        </button>
+        <button className="kpi-card clickable" onClick={() => onNavigate("calendar")}>
           <div className="value">{published}</div>
           <div className="label">이번 주 발행 완료</div>
-        </div>
-        <div className="kpi-card">
+        </button>
+        <button className="kpi-card clickable" onClick={() => onNavigate("generate")}>
           <div className="value">{pendingReview}</div>
           <div className="label">검수 대기 생성물</div>
-        </div>
-        <div className="kpi-card">
+        </button>
+        <button className="kpi-card clickable" onClick={() => onNavigate("clipping")}>
           <div className="value" style={{ color: recentErrors ? "var(--red)" : undefined }}>{recentErrors}</div>
           <div className="label">클리핑 ERROR 누적</div>
-        </div>
+        </button>
       </div>
 
       {(missingUrl > 0 || recentErrors >= 2) && (
@@ -114,21 +122,67 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       <div className="card">
-        <h3>주간 운영 루틴 (사람의 일은 주 2시간)</h3>
-        <table>
-          <thead><tr><th>요일</th><th>발행</th><th>내부 작업</th></tr></thead>
-          <tbody>
-            {TIMETABLE.map((r) => (
-              <tr key={r.day}>
-                <td>{r.day}</td>
-                <td>{r.task}</td>
-                <td>{r.work}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="page-header-row">
+          <h3 style={{ margin: 0 }}>이번 주 발행 일정</h3>
+          <HelpLink onNavigate={onNavigate} anchor="routine" label="권장 주간 루틴 보기" />
+        </div>
+        {thisWeek.length === 0 ? (
+          <p className="hint" style={{ marginTop: 10 }}>
+            이번 주에 등록된 발행 일정이 없습니다 — 콘텐츠 생성 후 "캘린더에 추가"로 등록하세요.
+          </p>
+        ) : (
+          <table style={{ marginTop: 6 }}>
+            <thead><tr><th>일시</th><th>채널</th><th>유형</th><th>상태</th></tr></thead>
+            <tbody>
+              {thisWeek.map((r) => {
+                const d = new Date(r.datetime);
+                return (
+                  <tr key={r.id}>
+                    <td>
+                      {DAY_LABEL[d.getDay()]}{" "}
+                      {String(d.getHours()).padStart(2, "0")}:{String(d.getMinutes()).padStart(2, "0")}
+                    </td>
+                    <td>{r.channel}</td>
+                    <td>{r.type}</td>
+                    <td><span className={`badge ${STATUS_BADGE[r.status] || "gray"}`}>{r.status}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="card">
+        <h3>최근 생성 콘텐츠</h3>
+        {recentGenerations.length === 0 ? (
+          <p className="hint">아직 생성한 콘텐츠가 없습니다.</p>
+        ) : (
+          <table>
+            <thead><tr><th>생성일</th><th>제목</th><th>검수</th></tr></thead>
+            <tbody>
+              {recentGenerations.map((g) => (
+                <tr key={g.id} style={{ cursor: "pointer" }} onClick={() => onNavigate("generate")}>
+                  <td style={{ whiteSpace: "nowrap" }}>{new Date(g.createdAt).toLocaleDateString("ko-KR")}</td>
+                  <td style={{ maxWidth: 340, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {generationTitle(g)}
+                  </td>
+                  <td>
+                    {g.review?.grade ? (
+                      <span className={`badge ${g.review.grade === "GREEN" ? "green" : g.review.grade === "YELLOW" ? "yellow" : "red"}`}>
+                        {g.review.grade}
+                      </span>
+                    ) : (
+                      <span className="badge gray">검수전</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
         <p className="hint" style={{ marginTop: 8 }}>
-          매일 09:00 발행 누락 경고 확인 · 월 1회 리포트 생성 + 키워드 갱신(40분) — 나머지 전 과정은 자동
+          행을 누르면 콘텐츠 생성·검수 화면으로 이동합니다 — "최근 생성 기록"에서 불러와 검수하세요.
         </p>
       </div>
     </div>

@@ -14,6 +14,15 @@ const CHANNEL_MAP = {
   facebook: "페이스북",
 };
 
+// 생성 결과를 채널 탭으로 전환해 보여준다 — 4채널을 세로로 전부 나열하면 화면이 수천 px로 길어져
+// 검수 게이트·최근 기록까지 도달하기 어렵기 때문.
+const CHANNEL_TABS = [
+  { id: "blog", label: "네이버 블로그" },
+  { id: "linkedin", label: "LinkedIn · 페이스북" },
+  { id: "shorts", label: "쇼츠" },
+  { id: "cardnews", label: "카드뉴스" },
+];
+
 // sections 스키마 도입 전(구버전)에 생성된 기록은 subheadings + 마크다운 문자열 body를 갖고 있다.
 // 신버전 sections 배열이 없으면 body를 문단 단위로 쪼개 같은 모양으로 변환해 화면이 깨지지 않게 한다.
 function getBlogSections(blog) {
@@ -49,7 +58,7 @@ function buildCardnewsPlainText(cardnews) {
   return cardnews.cards.map((c, i) => `${i + 1}장 — ${c.headline}\n${c.subcopy}`).join("\n\n");
 }
 
-export default function Generate({ onNavigate }) {
+export default function Generate({ onNavigate, onBusyChange }) {
   const [source, setSource] = useState("");
   const [purpose, setPurpose] = useState("");
   const [keywords, setKeywords] = useState("");
@@ -58,6 +67,7 @@ export default function Generate({ onNavigate }) {
   const [current, setCurrent] = useState(null);
   const [history, setHistory] = useState([]);
   const [addedNote, setAddedNote] = useState("");
+  const [activeChannel, setActiveChannel] = useState("blog");
 
   const [blogImagePrompt, setBlogImagePrompt] = useState("");
   const [blogImage, setBlogImage] = useState({ url: "", loading: false, error: "" });
@@ -70,6 +80,7 @@ export default function Generate({ onNavigate }) {
 
   // 새 생성물을 불러오면 이전 생성물의 이미지 상태는 초기화한다.
   useEffect(() => {
+    setActiveChannel("blog");
     setBlogImagePrompt("");
     setBlogImage({ url: "", loading: false, error: "" });
     setCardImages({ urls: [], loading: false, error: "" });
@@ -77,6 +88,24 @@ export default function Generate({ onNavigate }) {
     setBgmFile(null);
     setNarrationEnabled(false);
   }, [current?.id]);
+
+  // 생성·렌더링이 진행 중일 때 다른 화면으로 이동하면 결과를 잃는다 —
+  // App 셸에 busy 상태를 알려 이동 전 확인을 받게 하고, 창 닫기에도 경고를 띄운다.
+  const busy = loading || blogImage.loading || cardImages.loading || shortsVideo.loading || zipDownloading;
+  useEffect(() => {
+    onBusyChange?.(busy);
+    const beforeUnload = (e) => {
+      if (busy) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      onBusyChange?.(false);
+    };
+  }, [busy, onBusyChange]);
 
   const generateBlogImage = async () => {
     setBlogImage({ url: "", loading: true, error: "" });
@@ -184,6 +213,13 @@ export default function Generate({ onNavigate }) {
     }
   };
 
+  const deleteHistoryItem = async (g) => {
+    if (!confirm("이 생성 기록을 삭제할까요? 되돌릴 수 없습니다.")) return;
+    await api.deleteGeneration(g.id);
+    if (current?.id === g.id) setCurrent(null);
+    loadHistory();
+  };
+
   useEffect(() => {
     loadHistory();
   }, []);
@@ -272,9 +308,21 @@ export default function Generate({ onNavigate }) {
           {addedNote && <div className="info-box">{addedNote}</div>}
           <div className="card">
             <h3>생성 결과</h3>
-            <div className="channel-grid">
-              <div className="card channel-card">
-                <h4>네이버 블로그</h4>
+            <div className="channel-tabs">
+              {CHANNEL_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`channel-tab ${activeChannel === t.id ? "active" : ""}`}
+                  onClick={() => setActiveChannel(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {activeChannel === "blog" && (
+              <div className="channel-pane">
                 <p className="hint">제목 3안</p>
                 <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
                   {current.result.blog.titles.map((t, i) => (
@@ -331,9 +379,10 @@ export default function Generate({ onNavigate }) {
                   )}
                 </div>
               </div>
+            )}
 
-              <div className="card channel-card">
-                <h4>LinkedIn</h4>
+            {activeChannel === "linkedin" && (
+              <div className="channel-pane">
                 <p className="body-text">{current.result.linkedin.post}</p>
                 <p className="hint" style={{ marginTop: 8 }}>
                   {current.result.linkedin.hashtags.map((h) => `#${h}`).join(" ")}
@@ -353,9 +402,10 @@ export default function Generate({ onNavigate }) {
                   게시물과는 별개로 발행 예약·URL을 관리할 수 있습니다).
                 </p>
               </div>
+            )}
 
-              <div className="card channel-card">
-                <h4>쇼츠 스크립트</h4>
+            {activeChannel === "shorts" && (
+              <div className="channel-pane">
                 <p className="hint">훅: {current.result.shorts.hook}</p>
                 <table>
                   <thead>
@@ -448,9 +498,10 @@ export default function Generate({ onNavigate }) {
                   )}
                 </div>
               </div>
+            )}
 
-              <div className="card channel-card">
-                <h4>카드뉴스 (7장)</h4>
+            {activeChannel === "cardnews" && (
+              <div className="channel-pane">
                 {current.result.cardnews.cards.map((c, i) => (
                   <div key={i} style={{ marginBottom: 6, fontSize: 12.5 }}>
                     <strong>{i + 1}. {c.headline}</strong>
@@ -500,9 +551,9 @@ export default function Generate({ onNavigate }) {
                   )}
                 </div>
               </div>
-            </div>
+            )}
 
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
               <h4 style={{ color: "var(--accent-ink)" }}>[검수 포인트] — AI 자기 보고</h4>
               <p style={{ fontSize: 12.5 }}><strong>① 원본과 다르게 표현된 부분:</strong> {current.result.reviewPoints.differencesFromSource}</p>
               <p style={{ fontSize: 12.5 }}><strong>② 수치 인용 위치:</strong> {current.result.reviewPoints.numberCitations}</p>
@@ -526,12 +577,15 @@ export default function Generate({ onNavigate }) {
           <h3>최근 생성 기록</h3>
           <table>
             <thead>
-              <tr><th>생성일시</th><th>목적</th><th>등급</th><th></th></tr>
+              <tr><th>생성일시</th><th>제목</th><th>목적</th><th>등급</th><th></th></tr>
             </thead>
             <tbody>
               {history.slice(0, 15).map((g) => (
                 <tr key={g.id}>
-                  <td>{new Date(g.createdAt).toLocaleString("ko-KR")}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{new Date(g.createdAt).toLocaleString("ko-KR")}</td>
+                  <td style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {g.result?.blog?.titles?.[0] || g.sourceExcerpt?.slice(0, 40) || "-"}
+                  </td>
                   <td>{g.purpose || "-"}</td>
                   <td>
                     {g.review?.grade ? (
@@ -540,8 +594,9 @@ export default function Generate({ onNavigate }) {
                       <span className="badge gray">검수전</span>
                     )}
                   </td>
-                  <td>
-                    <button className="ghost" onClick={() => setCurrent(g)}>불러오기</button>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <button className="ghost" onClick={() => setCurrent(g)}>불러오기</button>{" "}
+                    <button className="danger" onClick={() => deleteHistoryItem(g)}>삭제</button>
                   </td>
                 </tr>
               ))}

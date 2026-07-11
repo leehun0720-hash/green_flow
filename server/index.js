@@ -147,6 +147,12 @@ app.get("/api/generations", (_req, res) => {
   res.json(readJson("generations", []));
 });
 
+app.delete("/api/generations/:id", (req, res) => {
+  const generations = readJson("generations", []);
+  writeJson("generations", generations.filter((g) => g.id !== req.params.id));
+  res.json({ ok: true });
+});
+
 // ---------- 05 사람 검수 게이트 ----------
 app.put("/api/generations/:id/review", (req, res) => {
   const generations = readJson("generations", []);
@@ -393,6 +399,12 @@ app.post("/api/report/generate", async (req, res) => {
 
 app.get("/api/reports", (_req, res) => {
   res.json(readJson("reports", []));
+});
+
+app.delete("/api/reports/:id", (req, res) => {
+  const reports = readJson("reports", []);
+  writeJson("reports", reports.filter((r) => r.id !== req.params.id));
+  res.json({ ok: true });
 });
 
 app.get("/api/health", (_req, res) => {

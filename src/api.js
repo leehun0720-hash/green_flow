@@ -39,6 +39,7 @@ export const api = {
   generate: (payload) =>
     request("/generate", { method: "POST", body: JSON.stringify(payload) }),
   listGenerations: () => request("/generations"),
+  deleteGeneration: (id) => request(`/generations/${id}`, { method: "DELETE" }),
 
   generateBlogImage: (prompt) =>
     request("/images/blog", { method: "POST", body: JSON.stringify({ prompt }) }),
@@ -66,4 +67,5 @@ export const api = {
   generateReport: (payload) =>
     request("/report/generate", { method: "POST", body: JSON.stringify(payload) }),
   listReports: () => request("/reports"),
+  deleteReport: (id) => request(`/reports/${id}`, { method: "DELETE" }),
 };

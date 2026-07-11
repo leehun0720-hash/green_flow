@@ -391,8 +391,10 @@ export default function Settings({ onNavigate, onSettingsSaved, persistedTheme }
         </div>
       </div>
 
-      {saved && <div className="info-box">설정을 저장했습니다.</div>}
-      <button className="primary" onClick={save}>설정 저장</button>
+      <div className="save-bar">
+        {saved && <span className="badge green">설정을 저장했습니다</span>}
+        <button className="primary" onClick={save}>설정 저장</button>
+      </div>
     </div>
   );
 }

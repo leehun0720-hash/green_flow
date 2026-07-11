@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "./api.js";
 import Dashboard from "./components/Dashboard.jsx";
 import Generate from "./components/Generate.jsx";
@@ -42,8 +42,19 @@ export default function App() {
     document.title = `${ui.appName} 콘텐츠 자동화`;
   }, [ui]);
 
+  // 콘텐츠 생성·영상 렌더링이 진행 중일 때 화면을 이동하면 결과를 잃는다 — 이동 전에 확인을 받는다.
+  const busyRef = useRef(false);
+  const onBusyChange = (b) => {
+    busyRef.current = b;
+  };
+
   // 탭 이동 + (매뉴얼 탭이면) 해당 섹션으로 바로 스크롤 이동
   const goTo = (tabId, anchor) => {
+    if (busyRef.current && tabId !== tab) {
+      const ok = confirm("생성 작업이 진행 중입니다. 지금 이동하면 진행 중인 결과를 잃습니다.\n그래도 이동할까요?");
+      if (!ok) return;
+      busyRef.current = false;
+    }
     setTab(tabId);
     if (tabId === "manual") setManualAnchor(anchor || null);
   };
@@ -66,7 +77,7 @@ export default function App() {
       <main className="main">
         <ErrorBoundary key={tab}>
           {tab === "dashboard" && <Dashboard onNavigate={goTo} />}
-          {tab === "generate" && <Generate onNavigate={goTo} />}
+          {tab === "generate" && <Generate onNavigate={goTo} onBusyChange={onBusyChange} />}
           {tab === "calendar" && <Calendar onNavigate={goTo} />}
           {tab === "clipping" && <Clipping onNavigate={goTo} />}
           {tab === "report" && <Report onNavigate={goTo} />}

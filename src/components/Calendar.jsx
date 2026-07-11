@@ -95,6 +95,12 @@ export default function Calendar({ onNavigate }) {
   const isAutoChannel = AUTO_PUBLISH_CHANNELS.has(form.channel);
   const sorted = [...rows].sort((a, b) => (a.datetime || "").localeCompare(b.datetime || ""));
 
+  // 예정 시각이 지났는데 아직 발행 전 상태(초안/검수완료)면 놓친 일정일 가능성이 높다 — 눈에 띄게 표시.
+  const now = new Date();
+  const isOverdue = (r) =>
+    r.datetime && new Date(r.datetime) < now && (r.status === "초안" || r.status === "검수완료");
+  const overdueCount = sorted.filter(isOverdue).length;
+
   return (
     <div>
       <div className="page-header-row">
@@ -210,6 +216,12 @@ export default function Calendar({ onNavigate }) {
       </div>
 
       {publishError && <div className="error-box">{publishError}</div>}
+      {overdueCount > 0 && (
+        <div className="error-box">
+          예정 시각이 지났는데 아직 발행 전 상태인 항목이 {overdueCount}건 있습니다 — 아래 표에서
+          <span className="badge red" style={{ margin: "0 4px" }}>지연</span>표시된 행을 확인하세요.
+        </div>
+      )}
 
       <div className="card">
         {loading ? (
@@ -226,16 +238,22 @@ export default function Calendar({ onNavigate }) {
             <tbody>
               {sorted.map((r) => {
                 const isAuto = AUTO_PUBLISH_CHANNELS.has(r.channel);
+                const overdue = isOverdue(r);
                 return (
                   <React.Fragment key={r.id}>
-                    <tr>
-                      <td>{r.datetime ? new Date(r.datetime).toLocaleString("ko-KR") : "-"}</td>
+                    <tr style={overdue ? { background: "var(--red-bg)" } : undefined}>
+                      <td>
+                        {r.datetime ? new Date(r.datetime).toLocaleString("ko-KR") : "-"}
+                        {overdue && (
+                          <div><span className="badge red">지연</span></div>
+                        )}
+                      </td>
                       <td>{r.channel}</td>
                       <td>{r.type}</td>
                       <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{r.source}</td>
                       <td>
                         <select
-                          className="status-select"
+                          className={`status-select status-${STATUS_BADGE[r.status] || "gray"}`}
                           value={r.status}
                           onChange={(e) => updateStatus(r, e.target.value)}
                         >
@@ -243,9 +261,6 @@ export default function Calendar({ onNavigate }) {
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
-                        <div>
-                          <span className={`badge ${STATUS_BADGE[r.status] || "gray"}`}>{r.status}</span>
-                        </div>
                       </td>
                       <td>
                         <input
