@@ -44,7 +44,14 @@
       "server/**",
       "electron/**",
       "package.json",
-      "!server/data/**"
+      "!server/data/**",
+      "!**/*.map",
+      "!**/*.d.ts",
+      "!**/*.md",
+      "!**/*.markdown",
+      "!**/{test,tests,__tests__,example,examples,docs,.github}/**",
+      "!**/{tsconfig.json,tsconfig.*.json,.eslintrc,.eslintrc.*,.editorconfig,.prettierrc,.prettierrc.*}",
+      "!**/*.min.js.map"
     ],
     "asarUnpack": [
       "node_modules/@napi-rs/**"
